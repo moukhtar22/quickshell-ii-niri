@@ -18,6 +18,7 @@ source ./sdata/lib/dist-determine.sh
 source ./sdata/lib/tui.sh
 source ./sdata/lib/conflicts.sh
 source ./sdata/lib/migrations.sh
+source ./sdata/lib/versioning.sh
 
 prevent_sudo_or_root
 set -e
@@ -43,6 +44,7 @@ Subcommands:
   update         Update ii-niri (QML code only, respects your configs)
   migrate        Apply optional config migrations (interactive)
   status         Show installation status and pending migrations
+  changelog      Show recent changes and release notes
   restore        Restore configs from backup
   
   install-deps   Install only dependencies
@@ -72,13 +74,14 @@ ${STY_BOLD}${STY_CYAN}Repository: https://github.com/snowarch/quickshell-ii-niri
 if [ $# -eq 0 ]; then
     tui_main_menu
     RET=$?
-    if [ $RET -eq 1 ]; then
-        set -- "install"
-    elif [ $RET -eq 2 ]; then
-        set -- "update"
-    else
-        exit 0
-    fi
+    case $RET in
+        1) set -- "install" ;;
+        2) set -- "update" ;;
+        3) set -- "status" ;;
+        4) set -- "migrate" ;;
+        5) set -- "changelog" ;;
+        *) exit 0 ;;
+    esac
 fi
 
 case $1 in
@@ -102,6 +105,10 @@ case $1 in
     ;;
   status)
     SUBCMD_NAME="status"
+    shift
+    ;;
+  changelog)
+    SUBCMD_NAME="changelog"
     shift
     ;;
   restore)
@@ -180,6 +187,34 @@ case ${SUBCMD_NAME} in
   update)
     # Safe update: only syncs QML code, never touches user configs
     detect_distro
+    
+    # Check if update is needed
+    installed_ver=$(get_installed_version)
+    installed_commit=$(get_installed_commit)
+    repo_ver=$(get_repo_version)
+    repo_commit=$(get_repo_commit)
+    
+    if [[ "$installed_ver" == "$repo_ver" && "$installed_commit" == "$repo_commit" ]]; then
+      echo ""
+      echo -e "${STY_GREEN}${STY_BOLD}✓ Already up to date${STY_RST}"
+      echo -e "  Version: $installed_ver ($installed_commit)"
+      echo ""
+      
+      # Still check for pending migrations
+      pending_count=$(count_pending_migrations)
+      if [[ "$pending_count" -gt 0 ]]; then
+        echo -e "${STY_YELLOW}Note: $pending_count pending migration(s) available.${STY_RST}"
+        echo -e "Run: ${STY_CYAN}./setup migrate${STY_RST} to review"
+      fi
+      exit 0
+    fi
+    
+    echo ""
+    echo -e "${STY_CYAN}${STY_BOLD}Updating ii-niri${STY_RST}"
+    echo -e "  From: $installed_ver ($installed_commit)"
+    echo -e "  To:   $repo_ver ($repo_commit)"
+    echo ""
+    
     pause
     export IS_UPDATE=true
     
@@ -194,11 +229,11 @@ case ${SUBCMD_NAME} in
       source ${SUBCMD_DIR}/3.files.sh
     fi
     
-    # Update version file
-    set_installed_version "$CURRENT_VERSION"
+    # Update version file with new format
+    set_installed_version "$repo_ver" "$repo_commit" "git"
     
     # Show pending migrations hint
-    local pending_count=$(count_pending_migrations)
+    pending_count=$(count_pending_migrations)
     if [[ "$pending_count" -gt 0 ]]; then
       echo ""
       echo -e "${STY_YELLOW}${STY_BOLD}┌─ Optional Migrations Available${STY_RST}"
@@ -210,6 +245,10 @@ case ${SUBCMD_NAME} in
       echo -e "${STY_YELLOW}│${STY_RST}"
       echo -e "${STY_YELLOW}└──────────────────────────────${STY_RST}"
     fi
+    
+    echo ""
+    echo -e "${STY_GREEN}${STY_BOLD}✓ Update complete${STY_RST}"
+    echo -e "  Now running: $repo_ver ($repo_commit)"
     ;;
     
   migrate)
@@ -244,19 +283,15 @@ case ${SUBCMD_NAME} in
     ;;
     
   status)
-    # Show installation status
-    echo ""
-    echo -e "${STY_CYAN}${STY_BOLD}ii-niri Installation Status${STY_RST}"
-    echo ""
-    echo -e "  ${STY_BOLD}Installed Version:${STY_RST} $(get_installed_version)"
-    echo -e "  ${STY_BOLD}Current Version:${STY_RST}   $CURRENT_VERSION"
-    echo ""
+    # Show installation status with new versioning system
+    show_version_status
     
+    echo ""
     show_migrations_status
     
     echo ""
     echo -e "${STY_BOLD}Backups:${STY_RST}"
-    local backups=($(list_backups))
+    backups=($(list_backups))
     if [[ ${#backups[@]} -eq 0 ]]; then
       echo "  No backups found"
     else
@@ -267,6 +302,23 @@ case ${SUBCMD_NAME} in
         echo "  ... and $((${#backups[@]} - 5)) more"
       fi
     fi
+    ;;
+    
+  changelog)
+    # Show changelog
+    if [[ "$1" == "-h" || "$1" == "--help" ]]; then
+      echo "Usage: $0 changelog [LINES]"
+      echo ""
+      echo "Show recent changes and release notes."
+      echo ""
+      echo "Options:"
+      echo "  LINES      Number of lines to show (default: 50)"
+      echo "  -h, --help Show this help"
+      exit 0
+    fi
+    
+    lines="${1:-50}"
+    show_changelog "$lines"
     ;;
     
   restore)

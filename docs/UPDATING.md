@@ -12,12 +12,83 @@ git pull
 
 That's it. Your shell code is updated, your configs are untouched.
 
+## Smart Updates
+
+The update system is intelligent:
+
+```bash
+./setup update
+```
+
+- Compares your installed version with the repository
+- Only syncs files if there are actual changes
+- Shows what version you're updating from/to
+- Never touches your personal configs
+
+If you're already up to date:
+```
+✓ Already up to date
+  Version: 2.1.0 (abc1234)
+```
+
+## Check Status
+
+```bash
+./setup status
+```
+
+Shows:
+- Installed version and commit
+- Repository version (what you have locally)
+- Remote version (latest on GitHub)
+- Pending migrations
+- Available backups
+
+Example output:
+```
+ii-niri Version Status
+
+  Installed:  2.0.0 (abc1234)
+  Repository: 2.1.0 (def5678)
+
+  → Repository has newer version
+    Run: ./setup update
+
+Checking remote...
+  ✓ Latest release: v2.1.0
+
+Migration Status
+
+  ✓ 001-gamemode-animation-toggle
+  ✓ 002-backdrop-layer-rules
+  ● 009-new-feature (pending)
+
+Applied: 8 | Skipped: 0 | Pending: 1
+
+Backups:
+  - 2025-12-13-143052
+  - 2025-12-10-091500
+```
+
+## View Changelog
+
+```bash
+./setup changelog
+```
+
+Shows recent changes and release notes. Useful to see what's new before updating.
+
+```bash
+./setup changelog 100  # Show more lines
+```
+
 ## What `update` Does
 
-1. **Syncs QML code** to `~/.config/quickshell/ii/`
-2. **Checks for new dependencies** and installs them
-3. **Updates version file** for tracking
-4. **Shows pending migrations** (if any)
+1. **Compares versions** - checks if update is needed
+2. **Syncs QML code** to `~/.config/quickshell/ii/`
+3. **Checks for new dependencies** and installs them
+4. **Updates version tracking** for future comparisons
+5. **Shows pending migrations** (if any)
 
 What it does NOT do:
 - Modify `~/.config/niri/config.kdl`
@@ -91,17 +162,25 @@ Before any config change, ii-niri creates a backup:
 ./setup restore 2025-12-13-143052
 ```
 
-## Check Status
+## TUI Mode
 
-```bash
-./setup status
+Run `./setup` without arguments for an interactive menu:
+
 ```
+┌──────────────────────────────────────────────┐
+│     illogical-impulse on Niri                │
+│     Setup & Management                       │
+└──────────────────────────────────────────────┘
 
-Shows:
-- Installed version
-- Current version
-- Migration status (applied/skipped/pending)
-- Available backups
+What would you like to do?
+> Install
+  Update
+  Status
+  Migrate Configs
+  Changelog
+  Help
+  Exit
+```
 
 ## Philosophy
 
@@ -109,6 +188,7 @@ Shows:
 2. **Transparency** - You see exactly what will change before it happens
 3. **Reversibility** - Automatic backups, easy restore
 4. **Opt-in features** - New features via migrations are optional
+5. **Smart updates** - Only sync when there are actual changes
 
 ## Troubleshooting
 
@@ -125,6 +205,24 @@ cp ~/.config/illogical-impulse/backups/TIMESTAMP/niri-config.kdl ~/.config/niri/
 ### Want to re-apply a skipped migration
 
 Edit `~/.config/illogical-impulse/migrations.json` and remove the migration ID from the "skipped" array, then run `./setup migrate` again.
+
+### Force update even if versions match
+
+```bash
+# Pull latest changes first
+git pull
+
+# Force reinstall of files
+./setup install-files
+```
+
+### Check what version you have
+
+```bash
+./setup status
+# or
+cat ~/.config/illogical-impulse/version.json
+```
 
 ### Force fresh install behavior
 

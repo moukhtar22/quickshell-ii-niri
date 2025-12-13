@@ -23,10 +23,10 @@ function tui_main_menu() {
     
     local choice
     if check_gum; then
-        choice=$(gum choose --header "What would you like to do?" "Install" "Update" "Help" "Exit")
+        choice=$(gum choose --header "What would you like to do?" "Install" "Update" "Status" "Migrate Configs" "Changelog" "Help" "Exit")
     else
         echo "Select an action:"
-        select c in "Install" "Update" "Help" "Exit"; do
+        select c in "Install" "Update" "Status" "Migrate Configs" "Changelog" "Help" "Exit"; do
             choice=$c
             break
         done
@@ -39,6 +39,15 @@ function tui_main_menu() {
             ;;
         "Update")
             return 2 # Signal update
+            ;;
+        "Status")
+            return 3 # Signal status
+            ;;
+        "Migrate Configs")
+            return 4 # Signal migrate
+            ;;
+        "Changelog")
+            return 5 # Signal changelog
             ;;
         "Help")
             showhelp_global
