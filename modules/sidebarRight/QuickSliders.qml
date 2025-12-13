@@ -41,21 +41,9 @@ Rectangle {
             visible: active
             active: (Config.options?.sidebar?.quickSliders?.showBrightness ?? true) && !!root.brightnessMonitor
             sourceComponent: QuickSlider {
-                id: brightnessSlider
                 materialSymbol: "brightness_6"
-                value: root.brightnessMonitor ? root.brightnessMonitor.brightness : 0
-                onMoved: {
-                    if (root.brightnessMonitor)
-                        root.brightnessMonitor.setBrightness(value)
-                }
-                Connections {
-                    target: root.brightnessMonitor ?? null
-                    function onBrightnessChanged() {
-                        if (!brightnessSlider.pressed) {
-                            brightnessSlider.value = root.brightnessMonitor?.brightness ?? 0
-                        }
-                    }
-                }
+                value: root.brightnessMonitor?.brightness ?? 0
+                onMoved: root.brightnessMonitor?.setBrightness(value)
             }
         }
 
@@ -68,20 +56,9 @@ Rectangle {
             visible: active
             active: Config.options?.sidebar?.quickSliders?.showVolume ?? true
             sourceComponent: QuickSlider {
-                id: volumeSlider
                 materialSymbol: "volume_up"
-                value: Audio.sink && Audio.sink.audio ? Audio.sink.audio.volume : 0
-                onMoved: {
-                    Audio.setSinkVolume(value)
-                }
-                Connections {
-                    target: Audio.sink?.audio ?? null
-                    function onVolumeChanged() {
-                        if (!volumeSlider.pressed) {
-                            volumeSlider.value = Audio.sink?.audio?.volume ?? 0
-                        }
-                    }
-                }
+                value: Audio.sink?.audio?.volume ?? 0
+                onMoved: Audio.setSinkVolume(value)
             }
         }
 
