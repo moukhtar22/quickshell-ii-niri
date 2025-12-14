@@ -232,23 +232,25 @@ case ${SUBCMD_NAME} in
     # Update version file with new format
     set_installed_version "$repo_ver" "$repo_commit" "git"
     
-    # Show pending migrations hint
-    pending_count=$(count_pending_migrations)
-    if [[ "$pending_count" -gt 0 ]]; then
-      echo ""
-      echo -e "${STY_YELLOW}${STY_BOLD}┌─ Optional Migrations Available${STY_RST}"
-      echo -e "${STY_YELLOW}│${STY_RST}"
-      echo -e "${STY_YELLOW}│${STY_RST}  There are ${STY_BOLD}$pending_count${STY_RST} config migrations available."
-      echo -e "${STY_YELLOW}│${STY_RST}  These add new features but are ${STY_BOLD}optional${STY_RST}."
-      echo -e "${STY_YELLOW}│${STY_RST}"
-      echo -e "${STY_YELLOW}│${STY_RST}  Run: ${STY_CYAN}./setup migrate${STY_RST} to review and apply"
-      echo -e "${STY_YELLOW}│${STY_RST}"
-      echo -e "${STY_YELLOW}└──────────────────────────────${STY_RST}"
-    fi
-    
     echo ""
     echo -e "${STY_GREEN}${STY_BOLD}✓ Update complete${STY_RST}"
     echo -e "  Now running: $repo_ver ($repo_commit)"
+    
+    # Offer to apply pending migrations immediately
+    pending_count=$(count_pending_migrations)
+    if [[ "$pending_count" -gt 0 ]]; then
+      echo ""
+      echo -e "${STY_YELLOW}There are ${STY_BOLD}$pending_count${STY_RST}${STY_YELLOW} optional config migrations available.${STY_RST}"
+      echo -e "These add new features like OSD for volume keys, new keybinds, etc."
+      echo ""
+      read -p "Review and apply migrations now? [Y/n] " -n 1 -r
+      echo
+      if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+        run_migrations_interactive
+      else
+        echo -e "Skipped. Run ${STY_CYAN}./setup migrate${STY_RST} later to review."
+      fi
+    fi
     ;;
     
   migrate)

@@ -58,12 +58,12 @@ Read these or suffer.
 
 | Doc | What's in it |
 |-----|--------------|
-| [docs/INSTALL.md](docs/INSTALL.md) | How to install this thing |
-| [docs/PACKAGES.md](docs/PACKAGES.md) | Every package the installer uses, by category |
+| [docs/INSTALL.md](docs/INSTALL.md) | Installation guide |
+| [docs/SETUP.md](docs/SETUP.md) | Setup script, updates, migrations, backups |
 | [docs/KEYBINDS.md](docs/KEYBINDS.md) | Default keyboard shortcuts |
-| [docs/IPC.md](docs/IPC.md) | All IPC targets for custom keybindings |
-| [docs/SETUP.md](docs/SETUP.md) | How the setup script works, updates, uninstall |
-| [docs/LIMITATIONS.md](docs/LIMITATIONS.md) | Known limitations and what doesn't work |
+| [docs/IPC.md](docs/IPC.md) | IPC targets for custom keybindings |
+| [docs/PACKAGES.md](docs/PACKAGES.md) | Package list by category |
+| [docs/LIMITATIONS.md](docs/LIMITATIONS.md) | Known limitations |
 
 ---
 
@@ -83,15 +83,12 @@ Not on Arch? Check [docs/INSTALL.md](docs/INSTALL.md) for manual steps.
 
 ## Updating
 
-Already installed? Pull and sync:
-
 ```bash
-cd quickshell-ii-niri
 git pull
 ./setup update
 ```
 
-Syncs QML and configs. Your customizations stay. Missing keybinds get added. Hot reload does the rest.
+Your configs stay untouched. New features are offered as optional migrations.
 
 ---
 
