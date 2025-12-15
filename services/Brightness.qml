@@ -6,6 +6,7 @@ pragma ComponentBehavior: Bound
 
 import qs.modules.common
 import qs.modules.common.functions
+import qs.services
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
@@ -198,6 +199,20 @@ Singleton {
                 }
             }
 
+            // Niri support for anti-flashbang
+            Connections {
+                enabled: (Config.options?.light?.antiFlashbang?.enable ?? false) && Appearance.m3colors.darkmode && CompositorService.isNiri
+                target: CompositorService.isNiri ? NiriService : null
+                function onActiveWindowChanged() {
+                    screenshotTimer.interval = root.contentSwitchDelay;
+                    screenshotTimer.restart();
+                }
+                function onFocusedWorkspaceIdChanged() {
+                    screenshotTimer.interval = root.workspaceAnimationDelay;
+                    screenshotTimer.restart();
+                }
+            }
+
             Timer {
                 id: screenshotTimer
                 interval: 700 // This is what I have for a Hyprland ws anim
@@ -209,15 +224,15 @@ Singleton {
 
             Process {
                 id: screenshotProc
-                command: ["bash", "-c", 
-                    `mkdir -p '${StringUtils.shellSingleQuoteEscape(root.screenshotDir)}'`
-                    + ` && grim -o '${StringUtils.shellSingleQuoteEscape(screenScope.screenName)}' -`
-                    + ` | magick png:- -colorspace Gray -format "%[fx:mean*100]" info:`
+                command: ["/usr/bin/bash", "-c", 
+                    `/usr/bin/mkdir -p '${StringUtils.shellSingleQuoteEscape(root.screenshotDir)}'`
+                    + ` && /usr/bin/grim -o '${StringUtils.shellSingleQuoteEscape(screenScope.screenName)}' -`
+                    + ` | /usr/bin/magick png:- -colorspace Gray -format "%[fx:mean*100]" info:`
                 ]
                 stdout: StdioCollector {
                     id: lightnessCollector
                     onStreamFinished: {
-                        Quickshell.execDetached(["rm", screenScope.screenshotPath]); // Cleanup
+                        // No cleanup needed - we pipe directly to magick without saving file
                         const lightness = lightnessCollector.text
                         const newMultiplier = root.brightnessMultiplierForLightness(parseFloat(lightness))
                         Brightness.getMonitorForScreen(screenScope.modelData).setBrightnessMultiplier(newMultiplier)

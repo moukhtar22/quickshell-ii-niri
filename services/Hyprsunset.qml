@@ -8,21 +8,17 @@ import Quickshell.Hyprland
 import qs.services
 
 /**
- * Simple hyprsunset service with automatic mode.
- * In theory we don't need this because hyprsunset has a config file, but it somehow doesn't work.
- * It should also be possible to control it via hyprctl, but it doesn't work consistently either so we're just killing and launching.
+ * Night light service with automatic mode.
+ * Uses hyprsunset on Hyprland, wlsunset on Niri.
+ * 
+ * Based on end4's original implementation with Niri support added.
  */
 Singleton {
     id: root
     property string from: Config.options?.light?.night?.from ?? "19:00" 
     property string to: Config.options?.light?.night?.to ?? "06:30"
-    property bool automatic: (Config.options?.light?.night?.automatic ?? false) && (Config.ready ?? true)
+    property bool automatic: Config.options?.light?.night?.automatic && (Config?.ready ?? true)
     property int colorTemperature: Config.options?.light?.night?.colorTemperature ?? 5000
-    property bool supported: CompositorService.isHyprland || CompositorService.isNiri
-    property bool _wlsunsetAvailable: false
-    property bool _wlsunsetWarned: false
-    property bool _niriRestartInProgress: false
-    property bool _niriRestartQueued: false
     property bool shouldBeOn
     property bool firstEvaluation: true
     property bool active: false
@@ -39,145 +35,24 @@ Singleton {
     property int manualActiveHour
     property int manualActiveMinute
 
+    // Debounce timer for wlsunset restarts
+    property bool _pendingRestart: false
+    Timer {
+        id: restartDebounce
+        interval: 300
+        onTriggered: {
+            if (root._pendingRestart && root.active) {
+                root._doEnable()
+            }
+            root._pendingRestart = false
+        }
+    }
+
     onClockMinuteChanged: reEvaluate()
     onAutomaticChanged: {
         root.manualActive = undefined;
         root.firstEvaluation = true;
-        if (CompositorService.isNiri && root.active) {
-            scheduleNiriRestart()
-        }
         reEvaluate();
-    }
-
-    Timer {
-        id: niriRestartTimer
-        interval: 160
-        repeat: false
-        onTriggered: root._restartNiriWlsunset()
-    }
-
-    function scheduleNiriRestart() {
-        if (!CompositorService.isNiri) return;
-        if (!root.active) return;
-        if (!root._wlsunsetAvailable) return;
-        root._niriRestartQueued = true
-        niriRestartTimer.restart()
-    }
-
-    function _restartNiriWlsunset() {
-        if (!CompositorService.isNiri) return;
-        if (!root.active) return;
-        if (!root._wlsunsetAvailable) return;
-        if (root._niriRestartInProgress) return;
-
-        root._niriRestartInProgress = true
-        root._niriRestartQueued = false
-
-        // Ensure old instance is gone before starting a new one.
-        niriKillProc.running = true
-    }
-
-    Component.onCompleted: {
-        // Detect wlsunset on Niri to avoid Process start spam
-        if (CompositorService.isNiri) {
-            wlsunsetCheckProc.running = true
-        }
-    }
-
-    Process {
-        id: wlsunsetCheckProc
-        running: false
-        command: ["/usr/bin/test", "-x", "/usr/bin/wlsunset"]
-        onExited: (exitCode, exitStatus) => {
-            root._wlsunsetAvailable = (exitCode === 0)
-            if (!root._wlsunsetAvailable && !root._wlsunsetWarned) {
-                root._wlsunsetWarned = true
-                console.warn("[NightLight] wlsunset not found at /usr/bin/wlsunset - Night Light won't work on Niri until installed")
-            }
-        }
-    }
-
-    Process {
-        id: pidofProc
-        running: false
-        command: ["/usr/bin/pidof", "hyprsunset"]
-        onExited: (exitCode, exitStatus) => {
-            if (exitCode !== 0) {
-                startProc.running = true
-            }
-        }
-    }
-
-    Process {
-        id: startProc
-        running: false
-        command: ["/usr/bin/hyprsunset", "--temperature", `${root.colorTemperature}`]
-    }
-
-    Process {
-        id: pkillProc
-        running: false
-        command: ["/usr/bin/pkill", "hyprsunset"]
-    }
-
-    Process {
-        id: niriPidofProc
-        running: false
-        command: ["/usr/bin/pidof", "wlsunset"]
-        onExited: (exitCode, exitStatus) => {
-            if (exitCode !== 0) {
-                niriStartProc.running = true
-            }
-        }
-    }
-
-    Process {
-        id: niriStartProc
-        running: false
-        command: {
-            const low = `${Config.options?.light?.night?.colorTemperature ?? root.colorTemperature}`
-            if (root.automatic) {
-                return [
-                    "/usr/bin/wlsunset",
-                    "-T", "6500",
-                    "-t", low,
-                    "-S", `${root.to}`,
-                    "-s", `${root.from}`
-                ]
-            }
-            return [
-                "/usr/bin/wlsunset",
-                "-T", low,
-                "-t", low
-            ]
-        }
-    }
-
-    Process {
-        id: niriKillProc
-        running: false
-        command: ["/usr/bin/pkill", "wlsunset"]
-        onExited: (exitCode, exitStatus) => {
-            if (!CompositorService.isNiri) {
-                root._niriRestartInProgress = false
-                return
-            }
-            if (!root.active || !root._wlsunsetAvailable) {
-                root._niriRestartInProgress = false
-                return
-            }
-
-            // Start with latest config-derived command
-            niriStartProc.running = true
-
-            // If more slider events happened meanwhile, schedule another restart.
-            Qt.callLater(() => {
-                root._niriRestartInProgress = false
-                if (root._niriRestartQueued) {
-                    niriRestartTimer.restart()
-                }
-            })
-        }
     }
 
     function inBetween(t, from, to) {
@@ -207,7 +82,6 @@ Singleton {
 
     onShouldBeOnChanged: ensureState()
     function ensureState() {
-        // console.log("[Hyprsunset] Ensuring state:", root.shouldBeOn, "Automatic mode:", root.automatic);
         if (!root.automatic || root.manualActive !== undefined)
             return;
         if (root.shouldBeOn) {
@@ -219,56 +93,59 @@ Singleton {
 
     function load() { } // Dummy to force init
 
-    function enable() {
-        if (!root.supported)
-            return;
-        if (CompositorService.isNiri && !root._wlsunsetAvailable) {
-            if (!root._wlsunsetWarned) {
-                root._wlsunsetWarned = true
-                console.warn("[NightLight] wlsunset not found at /usr/bin/wlsunset - Night Light won't work on Niri until installed")
-            }
-            root.active = false
-            return;
+    function _doEnable() {
+        if (CompositorService.isNiri) {
+            // wlsunset: -T high temp (day), -t low temp (night)
+            // Force "always night" mode: sunset at 00:00, sunrise at 23:59
+            // Must use execDetached so wlsunset keeps running after Process ends
+            Quickshell.execDetached(["/usr/bin/wlsunset", "-T", "6500", "-t", root.colorTemperature.toString(), "-s", "00:00", "-S", "23:59"]);
+        } else {
+            hyprsunsetStartProc.running = true;
         }
+    }
+
+    function enable() {
         root.active = true;
-        // console.log("[Hyprsunset] Enabling");
-        if (CompositorService.isHyprland) {
-            pidofProc.running = true
-        } else if (CompositorService.isNiri) {
-            niriPidofProc.running = true
+        if (CompositorService.isNiri) {
+            // Kill first, then start after kill completes
+            wlsunsetKillProc.running = true;
+        } else {
+            root._doEnable();
         }
     }
 
     function disable() {
-        if (!root.supported)
-            return;
-        if (CompositorService.isNiri && !root._wlsunsetAvailable) {
-            root.active = false
-            return;
-        }
         root.active = false;
-        // console.log("[Hyprsunset] Disabling");
-        if (CompositorService.isHyprland) {
-            pkillProc.running = true
-        } else if (CompositorService.isNiri) {
-            niriKillProc.running = true
+        if (CompositorService.isNiri) {
+            wlsunsetKillProc.running = true;
+        } else {
+            hyprsunsetKillProc.running = true;
         }
     }
 
     function fetchState() {
-        if (!root.supported)
-            return;
-        if (CompositorService.isHyprland) {
-            fetchProc.running = true;
-        } else if (CompositorService.isNiri) {
+        if (CompositorService.isNiri) {
             niriFetchProc.running = true;
+        } else {
+            fetchProc.running = true;
         }
+    }
+
+    // === Hyprland processes ===
+    Process {
+        id: hyprsunsetStartProc
+        command: ["/usr/bin/bash", "-c", `pidof hyprsunset || /usr/bin/hyprsunset --temperature ${root.colorTemperature}`]
+    }
+
+    Process {
+        id: hyprsunsetKillProc
+        command: ["/usr/bin/pkill", "-x", "hyprsunset"]
     }
 
     Process {
         id: fetchProc
-        running: CompositorService.isHyprland
-        command: ["/usr/bin/hyprctl", "hyprsunset", "temperature"]
+        running: !CompositorService.isNiri
+        command: ["/usr/bin/bash", "-c", "hyprctl hyprsunset temperature"]
         stdout: StdioCollector {
             id: stateCollector
             onStreamFinished: {
@@ -277,23 +154,35 @@ Singleton {
                     root.active = false;
                 else
                     root.active = (output != "6500"); // 6500 is the default when off
-                // console.log("[Hyprsunset] Fetched state:", output, "->", root.active);
             }
         }
     }
+
+    // === Niri processes (wlsunset) ===
+    Process {
+        id: wlsunsetKillProc
+        command: ["/usr/bin/pkill", "-x", "wlsunset"]
+        onExited: {
+            // If we're enabling, start wlsunset after kill completes
+            if (root.active) {
+                root._doEnable();
+            }
+        }
+    }
+
+    // wlsunsetStartProc removed - using Quickshell.execDetached instead
+    // because Process terminates the child when it's destroyed/restarted
 
     Process {
         id: niriFetchProc
         running: CompositorService.isNiri
         command: ["/usr/bin/pidof", "wlsunset"]
         onExited: (exitCode, exitStatus) => {
-            root.active = (exitCode === 0)
+            root.active = (exitCode === 0);
         }
     }
 
     function toggle(active = undefined) {
-        if (!root.supported)
-            return;
         if (root.manualActive === undefined) {
             root.manualActive = root.active;
             root.manualActiveHour = root.clockHour;
@@ -308,37 +197,38 @@ Singleton {
         }
     }
 
-    // Change temp
+    // React to temperature changes while active
     Connections {
         target: Config.options?.light?.night ?? null
         enabled: !!(Config.options?.light?.night)
+        
         function onColorTemperatureChanged() {
             if (!root.active) return;
-            if (CompositorService.isHyprland) {
-                Quickshell.execDetached(["/usr/bin/hyprctl", "hyprsunset", "temperature", `${Config.options?.light?.night?.colorTemperature ?? root.colorTemperature}`]);
-                return;
-            }
+            const temp = Config.options?.light?.night?.colorTemperature ?? root.colorTemperature;
+            
             if (CompositorService.isNiri) {
-                root.scheduleNiriRestart()
+                // Queue restart with debounce
+                root._pendingRestart = true;
+                restartDebounce.restart();
+            } else {
+                Quickshell.execDetached(["/usr/bin/hyprctl", "hyprsunset", "temperature", `${temp}`]);
             }
         }
+    }
 
+    // React to schedule changes while automatic mode is on
+    Connections {
+        target: Config.options?.light?.night ?? null
+        enabled: root.automatic && !!(Config.options?.light?.night)
+        
         function onFromChanged() {
-            if (CompositorService.isNiri && root.active) {
-                root.scheduleNiriRestart()
-            }
+            root.firstEvaluation = true;
+            root.reEvaluate();
         }
-
+        
         function onToChanged() {
-            if (CompositorService.isNiri && root.active) {
-                root.scheduleNiriRestart()
-            }
-        }
-
-        function onAutomaticChanged() {
-            if (CompositorService.isNiri && root.active) {
-                root.scheduleNiriRestart()
-            }
+            root.firstEvaluation = true;
+            root.reEvaluate();
         }
     }
 }
