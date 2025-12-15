@@ -59,11 +59,11 @@ Read these or suffer.
 | Doc | What's in it |
 |-----|--------------|
 | [docs/INSTALL.md](docs/INSTALL.md) | Installation guide |
-| [docs/SETUP.md](docs/SETUP.md) | Setup script, updates, migrations, backups |
+| [docs/SETUP.md](docs/SETUP.md) | Setup script, updates, migrations, rollback |
 | [docs/KEYBINDS.md](docs/KEYBINDS.md) | Default keyboard shortcuts |
 | [docs/IPC.md](docs/IPC.md) | IPC targets for custom keybindings |
 | [docs/PACKAGES.md](docs/PACKAGES.md) | Package list by category |
-| [docs/LIMITATIONS.md](docs/LIMITATIONS.md) | Known limitations |
+| [docs/LIMITATIONS.md](docs/LIMITATIONS.md) | Known limitations (read before complaining) |
 
 ---
 
@@ -74,10 +74,10 @@ Arch-based? Run this:
 ```bash
 git clone https://github.com/snowarch/quickshell-ii-niri.git
 cd quickshell-ii-niri
-./setup install -y
+./setup install
 ```
 
-Not on Arch? Check [docs/INSTALL.md](docs/INSTALL.md) for manual steps.
+Not on Arch? Check [docs/INSTALL.md](docs/INSTALL.md) for manual steps. Good luck.
 
 ---
 
@@ -88,7 +88,7 @@ git pull
 ./setup update
 ```
 
-Your configs stay untouched. New features are offered as optional migrations.
+Your configs stay untouched. New features are offered as optional migrations. If something breaks, `./setup rollback` has your back.
 
 ---
 
@@ -99,16 +99,15 @@ These come configured by default:
 | Key | What it does |
 |-----|--------------|
 | `Mod+Tab` | Niri overview (native) |
-| `Mod+Space` (`Super+Space`) | ii overview (search/workspaces nav) |
+| `Mod+Space` | ii overview (search/workspaces nav) |
 | `Alt+Tab` | ii window switcher |
-| `Super+G` | ii overlay ( widgets/utils) |
+| `Super+G` | ii overlay (widgets/utils) |
 | `Super+V` | Clipboard history |
 | `Super+Shift+S` | Region screenshot |
 | `Super+Shift+X` | Region OCR |
 | `Ctrl+Alt+T` | Wallpaper picker |
 | `Super+/` | Keyboard shortcuts cheatsheet |
 | `Super+,` | Settings |
-| `Mod+Shift+W` | Cycle panel style (Material ↔ Waffle) |
 
 Full list in [docs/KEYBINDS.md](docs/KEYBINDS.md).
 
@@ -141,9 +140,9 @@ Main targets:
 | `panelFamily` | `cycle`, `set` |
 | `mpris` | `playPause`, `next`, `previous` |
 | `brightness` | `increment`, `decrement` |
+| `audio` | `volumeUp`, `volumeDown`, `mute`, `micMute` |
 | `gamemode` | `toggle`, `activate`, `deactivate`, `status` |
 | `notifications` | `test`, `clearAll`, `toggleSilent` |
-| `audio` | `volumeUp`, `volumeDown`, `mute`, `micMute` |
 
 Full reference with examples: [docs/IPC.md](docs/IPC.md)
 
@@ -160,8 +159,11 @@ qs log -c ii
 # Restart ii without restarting Niri
 qs kill -c ii && qs -c ii
 
-# Nuclear option: reload everything
-niri msg action load-config-file
+# Run diagnostics and auto-fix common issues
+./setup doctor
+
+# Undo last update if everything went sideways
+./setup rollback
 ```
 
 If you're still stuck, the logs usually tell you what's missing. Usually.
@@ -178,7 +180,7 @@ This fork diverged a lot from the original - different compositor, different fea
 
 ## Credits
 
-- [**end-4**](https://github.com/end-4/dots-hyprland) –  illogical-impulse for Hyprland
+- [**end-4**](https://github.com/end-4/dots-hyprland) – illogical-impulse for Hyprland
 - [**Quickshell**](https://quickshell.outfoxxed.me/) – the framework that makes this possible
 - [**Niri**](https://github.com/YaLTeR/niri) – the compositor that doesn't crash
 

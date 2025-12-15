@@ -10,8 +10,8 @@ Change them. Break them. Make them yours. We won't judge.
 
 | Key | Action |
 |-----|--------|
-| `Super+Tab` | Niri overview (native compositor) |
-| `Mod+Space` (`Super+Space`) | ii overview (daemon) |
+| `Mod+Tab` | Niri overview (native compositor) |
+| `Mod+Space` | ii overview (daemon) |
 | `Super+G` | ii overlay (search, widgets) |
 | `Alt+Tab` | ii window switcher (next) |
 | `Alt+Shift+Tab` | ii window switcher (previous) |
@@ -20,7 +20,6 @@ Change them. Break them. Make them yours. We won't judge.
 | `Super+,` | Settings |
 | `Super+Alt+L` | Lock screen |
 | `Ctrl+Alt+T` | Wallpaper selector |
-| `Mod+Shift+W` | Cycle panel style (Material ↔ Waffle) |
 
 ---
 

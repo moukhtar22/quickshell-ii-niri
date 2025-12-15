@@ -248,13 +248,16 @@ On-screen keyboard.
 
 ---
 
-### crosshair
+### audio
 
-Gaming crosshair overlay. For when the game doesn't give you one and you need that competitive edge.
+Volume and mute control.
 
 | Function | Description |
 |----------|-------------|
-| `toggle` | Toggle crosshair visibility |
+| `volumeUp` | Increase volume |
+| `volumeDown` | Decrease volume |
+| `mute` | Toggle speaker mute |
+| `micMute` | Toggle microphone mute |
 
 ---
 
@@ -425,3 +428,13 @@ Waffle taskbar visibility.
 | `toggle` | Show/hide taskbar |
 | `open` | Show taskbar |
 | `close` | Hide taskbar |
+
+---
+
+### taskview
+
+Waffle task view (Win+Tab style).
+
+| Function | Description |
+|----------|-------------|
+| `toggle` | Open/close task view |
