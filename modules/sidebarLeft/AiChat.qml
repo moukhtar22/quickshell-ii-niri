@@ -405,9 +405,28 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
             }
         }
 
-        DescriptionBox {
-            text: root.suggestionList[suggestions.selectedIndex]?.description ?? ""
-            showArrows: root.suggestionList.length > 1
+        // Compact hint row (replaces DescriptionBox for model suggestions)
+        RowLayout {
+            visible: root.suggestionList.length > 0 && messageInputField.text.length > 0
+            Layout.fillWidth: true
+            spacing: 4
+            
+            StyledText {
+                Layout.fillWidth: true
+                text: root.suggestionList.length > 1 
+                    ? Translation.tr("Select model") 
+                    : ""
+                font.pixelSize: Appearance.font.pixelSize.smaller
+                color: Appearance.colors.colSubtext
+                elide: Text.ElideRight
+            }
+            KeyboardKey {
+                visible: root.suggestionList.length > 1
+                key: "↑↓"
+            }
+            KeyboardKey {
+                key: "Tab"
+            }
         }
 
         FlowButtonGroup { // Suggestions
@@ -415,7 +434,7 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
             visible: root.suggestionList.length > 0 && messageInputField.text.length > 0
             property int selectedIndex: 0
             Layout.fillWidth: true
-            spacing: 5
+            spacing: 4
 
             Repeater {
                 id: suggestionRepeater
@@ -428,7 +447,7 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
                     colBackground: suggestions.selectedIndex === index ? Appearance.colors.colSecondaryContainerHover : Appearance.colors.colSecondaryContainer
                     bounce: false
                     contentItem: StyledText {
-                        font.pixelSize: Appearance.font.pixelSize.small
+                        font.pixelSize: Appearance.font.pixelSize.smaller
                         color: Appearance.m3colors.m3onSurface
                         horizontalAlignment: Text.AlignHCenter
                         text: modelData.displayName ?? modelData.name
@@ -441,6 +460,12 @@ Inline w/ backslash and round brackets \\(e^{i\\pi} + 1 = 0\\)
                     }
                     onClicked: {
                         suggestions.acceptSuggestion(modelData.name);
+                    }
+                    
+                    StyledToolTip {
+                        visible: commandButton.hovered && modelData.description
+                        text: modelData.description ?? ""
+                        delay: 300
                     }
                 }
             }
