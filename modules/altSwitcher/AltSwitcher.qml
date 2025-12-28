@@ -38,12 +38,16 @@ Scope {
     property real panelRightMargin: -panelWidth
     // Snapshot actual de ventanas ordenadas que se usa mientras el panel está abierto
     property var itemSnapshot: []
+    // Cache de iconos resueltos para evitar lookups repetidos
+    property var iconCache: ({})
     property bool useM3Layout: root.altUseM3Layout
     property bool centerPanel: root.altPanelAlignment === "center"
     property bool compactStyle: root.altCompactStyle
     property bool listStyle: root.altPreset === "list"
     property bool showOverviewWhileSwitching: root.altShowOverviewWhileSwitching
     property bool overviewOpenedByAltSwitcher: false
+    // Pre-warm flag para evitar lag en primera apertura
+    property bool _warmedUp: false
 
 
 
@@ -69,6 +73,16 @@ Scope {
             parts[i] = p.charAt(0).toUpperCase() + p.slice(1)
         }
         return parts.join(" ")
+    }
+
+    // Resuelve y cachea el icono para un appId
+    function getCachedIcon(appId, appName, title) {
+        const key = appId || appName || title || ""
+        if (iconCache[key] !== undefined)
+            return iconCache[key]
+        const icon = Quickshell.iconPath(AppSearch.guessIcon(key), "image-missing")
+        iconCache[key] = icon
+        return icon
     }
 
     function buildItemsFrom(windows, workspaces, mruIds) {
@@ -99,7 +113,9 @@ Scope {
                 appName: appName,
                 title: w.title || "",
                 workspaceId: w.workspace_id,
-                workspaceIdx: wsIdx
+                workspaceIdx: wsIdx,
+                // Pre-resolver icono durante build para evitar lag en render
+                icon: root.getCachedIcon(appId, appName, w.title)
             }
             items.push(item)
             itemsById[item.id] = item
@@ -406,10 +422,7 @@ Scope {
                                 anchors.centerIn: parent
                                 width: 40
                                 height: 40
-                                source: Quickshell.iconPath(
-                                    AppSearch.guessIcon(modelData.appId || modelData.appName || modelData.title),
-                                    "image-missing"
-                                )
+                                source: modelData.icon || ""
                             }
                             
                             Loader {
@@ -562,10 +575,7 @@ Scope {
                                         Layout.alignment: Qt.AlignVCenter
                                         width: 32
                                         height: 32
-                                        source: Quickshell.iconPath(
-                                            AppSearch.guessIcon(listTile.modelData?.appId ?? listTile.modelData?.appName ?? ""),
-                                            "image-missing"
-                                        )
+                                        source: listTile.modelData?.icon ?? ""
                                         implicitSize: 32
                                     }
 
@@ -646,6 +656,7 @@ Scope {
                     Layout.minimumHeight: 0
                     clip: true
                     spacing: Appearance.sizes.spacingSmall
+                    cacheBuffer: 600  // Pre-cargar items fuera de vista
                     property int rowHeight: (count <= 6
                                               ? 60
                                               : (count <= 10 ? 52 : 44))
@@ -771,10 +782,7 @@ Scope {
                                 IconImage {
                                     id: altSwitcherIcon
                                     anchors.fill: parent
-                                    source: Quickshell.iconPath(
-                                        AppSearch.guessIcon(modelData.appId || modelData.appName || modelData.title),
-                                        "image-missing"
-                                    )
+                                    source: modelData.icon || ""
                                     implicitSize: parent.height
                                 }
 
@@ -974,7 +982,39 @@ Scope {
         }
     }
 
+    // Pre-warm: construir snapshot en background después de que el shell inicie
+    // para evitar lag en la primera apertura
+    Timer {
+        id: warmUpTimer
+        interval: 2000  // 2 segundos después del inicio
+        running: !root._warmedUp && NiriService.windows.length > 0
+        onTriggered: {
+            root.rebuildSnapshot()
+            root._warmedUp = true
+            // Limpiar snapshot después de warm-up (se reconstruye al abrir)
+            Qt.callLater(function() {
+                if (!GlobalStates.altSwitcherOpen)
+                    root.itemSnapshot = []
+            })
+        }
+    }
 
+    // Re-warm cuando cambian las ventanas (solo si no está abierto)
+    Connections {
+        target: NiriService
+        enabled: root._warmedUp && !GlobalStates.altSwitcherOpen
+        function onWindowsChanged() {
+            // Invalidar cache de iconos para nuevas apps
+            const wins = NiriService.windows || []
+            for (let i = 0; i < wins.length; i++) {
+                const w = wins[i]
+                const key = w.app_id || ""
+                if (key && root.iconCache[key] === undefined) {
+                    root.getCachedIcon(w.app_id, "", w.title)
+                }
+            }
+        }
+    }
 
     // Only handle IPC when Material ii family is active
     property bool isActive: Config.options?.panelFamily !== "waffle"
