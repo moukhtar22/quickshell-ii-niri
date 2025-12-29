@@ -364,7 +364,7 @@ Item {
                         const appClass = CompositorService.isNiri 
                             ? (biggestWindow?.app_id || biggestWindow?.appId) 
                             : biggestWindow?.class
-                        return Quickshell.iconPath(AppSearch.guessIcon(appClass), "image-missing")
+                        return AppSearch.getIconSource(appClass)
                     }
 
                     StyledText { // Workspace number text
@@ -575,7 +575,7 @@ Item {
                     implicitWidth: workspaceButtonWidth
                     implicitHeight: workspaceButtonWidth
                     
-                    property string appIconSource: Quickshell.iconPath(AppSearch.guessIcon(columnButton.modelData?.app_id), "image-missing")
+                    property string appIconSource: AppSearch.getIconSource(columnButton.modelData?.app_id ?? "")
                     property bool isActive: columnButton.index === root.currentWindowIndex
                     property color dotColor: isActive ? Appearance.m3colors.m3onPrimary : Appearance.m3colors.m3onSecondaryContainer
 

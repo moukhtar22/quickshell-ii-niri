@@ -80,7 +80,7 @@ Scope {
         const key = appId || appName || title || ""
         if (iconCache[key] !== undefined)
             return iconCache[key]
-        const icon = Quickshell.iconPath(AppSearch.guessIcon(key), "image-missing")
+        const icon = AppSearch.getIconSource(key)
         iconCache[key] = icon
         return icon
     }

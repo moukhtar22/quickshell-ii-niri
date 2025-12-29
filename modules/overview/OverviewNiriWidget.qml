@@ -632,7 +632,7 @@ Item {
                                 return size;
                             }
                             height: width
-                            source: Quickshell.iconPath(AppSearch.guessIcon(windowData.app_id || windowData.appId || ""), "image-missing")
+                            source: AppSearch.getIconSource(windowData.app_id || windowData.appId || "")
                             asynchronous: true
                             fillMode: Image.PreserveAspectFit
                             scale: windowItem.hovered ? 1.08 : 1.0
