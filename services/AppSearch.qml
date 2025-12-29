@@ -15,6 +15,7 @@ Singleton {
     property var substitutions: ({
         "code-url-handler": "visual-studio-code",
         "Code": "visual-studio-code",
+        "code": "visual-studio-code",
         "gnome-tweaks": "org.gnome.tweaks",
         "pavucontrol-qt": "pavucontrol",
         "wps": "wps-office2019-kprometheus",
@@ -153,5 +154,29 @@ Singleton {
 
         // Give up
         return str;
+    }
+
+    // Returns a ready-to-use icon source (handles both icon names and absolute paths)
+    function getIconSource(str, fallback): string {
+        fallback = fallback ?? "image-missing"
+        const icon = guessIcon(str);
+        // Absolute path - return as file:// URL
+        if (icon.startsWith("/")) {
+            return "file://" + icon;
+        }
+        // Icon name - resolve via theme
+        return Quickshell.iconPath(icon, fallback);
+    }
+
+    // Resolves an icon name/path directly (for when you already have the icon from a DesktopEntry)
+    function resolveIcon(iconNameOrPath, fallback): string {
+        fallback = fallback ?? "image-missing"
+        if (!iconNameOrPath) return Quickshell.iconPath(fallback, "");
+        // Absolute path - return as file:// URL
+        if (iconNameOrPath.startsWith("/")) {
+            return "file://" + iconNameOrPath;
+        }
+        // Icon name - resolve via theme
+        return Quickshell.iconPath(iconNameOrPath, fallback);
     }
 }
