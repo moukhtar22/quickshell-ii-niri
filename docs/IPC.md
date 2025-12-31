@@ -105,6 +105,22 @@ bind "Super+Shift+A" { spawn "qs" "-c" "ii" "ipc" "call" "region" "search"; }
 
 ---
 
+### voiceSearch
+
+Voice search using Gemini API. Records from microphone, transcribes with Gemini, opens Google search.
+
+| Function | Description |
+|----------|-------------|
+| `start` | Start recording |
+| `stop` | Stop recording |
+| `toggle` | Toggle recording |
+
+```kdl
+bind "Super+Shift+V" { spawn "qs" "-c" "ii" "ipc" "call" "voiceSearch" "toggle"; }
+```
+
+---
+
 ### session
 
 Power menu. Logout, suspend, reboot, shutdown. The "I'm done for today" buttons.
