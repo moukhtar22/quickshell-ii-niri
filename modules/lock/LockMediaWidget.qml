@@ -42,12 +42,28 @@ Item {
     onArtFilePathChanged: {
         if (root.artUrl?.length == 0) {
             root.artDominantColor = Appearance.m3colors.m3secondaryContainer
+            root.downloaded = false
             return
         }
-        coverArtDownloader.targetFile = root.artUrl
-        coverArtDownloader.artFilePath = root.artFilePath
-        root.downloaded = false
-        coverArtDownloader.running = true
+        // Check if file already exists before resetting downloaded flag
+        artExistsChecker.running = true
+    }
+
+    Process {
+        id: artExistsChecker
+        command: ["/usr/bin/test", "-f", root.artFilePath]
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode === 0) {
+                // File exists, mark as downloaded
+                root.downloaded = true
+            } else {
+                // File doesn't exist, download it
+                root.downloaded = false
+                coverArtDownloader.targetFile = root.artUrl
+                coverArtDownloader.artFilePath = root.artFilePath
+                coverArtDownloader.running = true
+            }
+        }
     }
 
     Process {

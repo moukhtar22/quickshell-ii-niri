@@ -32,18 +32,37 @@ Item {
             downloaded = false
             return
         }
-        coverArtDownloader.targetFile = player.trackArtUrl
-        coverArtDownloader.artFilePath = artFilePath
-        downloaded = false
-        coverArtDownloader.running = true
+        // Check if file already exists before resetting downloaded flag
+        artExistsChecker.running = true
     }
 
     onArtFilePathChanged: checkAndDownloadArt()
+    
+    // Update art when track changes on current player
+    Connections {
+        target: root.player
+        function onTrackArtUrlChanged() { root.checkAndDownloadArt() }
+    }
     
     // Re-check cover art when becoming visible (style changes can cause re-render)
     onVisibleChanged: {
         if (visible && hasPlayer && !downloaded && artFilePath) {
             checkAndDownloadArt()
+        }
+    }
+
+    Process {
+        id: artExistsChecker
+        command: ["/usr/bin/test", "-f", root.artFilePath]
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode === 0) {
+                root.downloaded = true
+            } else {
+                root.downloaded = false
+                coverArtDownloader.targetFile = root.player?.trackArtUrl ?? ""
+                coverArtDownloader.artFilePath = root.artFilePath
+                coverArtDownloader.running = true
+            }
         }
     }
 

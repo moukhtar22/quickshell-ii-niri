@@ -68,17 +68,28 @@ Item { // Player instance
     }
 
     onArtFilePathChanged: {
-        if (root.artUrl.length == 0) {
+        if (root.artUrl?.length == 0) {
             root.artDominantColor = Appearance.m3colors.m3secondaryContainer
+            root.downloaded = false
             return;
         }
+        // Check if file already exists before resetting downloaded flag
+        artExistsChecker.running = true
+    }
 
-        // Binding does not work in Process
-        coverArtDownloader.targetFile = root.artUrl 
-        coverArtDownloader.artFilePath = root.artFilePath
-        // Download
-        root.downloaded = false
-        coverArtDownloader.running = true
+    Process { // Check if cover art exists
+        id: artExistsChecker
+        command: ["/usr/bin/test", "-f", root.artFilePath]
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode === 0) {
+                root.downloaded = true
+            } else {
+                root.downloaded = false
+                coverArtDownloader.targetFile = root.artUrl
+                coverArtDownloader.artFilePath = root.artFilePath
+                coverArtDownloader.running = true
+            }
+        }
     }
 
     Process { // Cover art downloader
