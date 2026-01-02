@@ -29,7 +29,9 @@ RippleButton {
                 ? (Appearance.inirEverywhere ? Appearance.inir.colOnPrimary : Appearance.colors.colOnPrimary)
                 : (isToday == 0) 
                     ? (Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer1)
-                    : (Appearance.inirEverywhere ? Appearance.inir.colTextSecondary : Appearance.colors.colOutlineVariant)
+                    : (Appearance.inirEverywhere ? Appearance.inir.colTextSecondary 
+                        : Appearance.auroraEverywhere ? Appearance.colors.colSubtext
+                        : Appearance.colors.colOutlineVariant)
 
         Behavior on color {
             animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)

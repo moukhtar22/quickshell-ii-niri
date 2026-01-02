@@ -264,7 +264,9 @@ Item {
                 topRightRadius: root.vertical ? radiusPrev : radiusNext
                 bottomRightRadius: radiusNext
                 
-                color: ColorUtils.transparentize(Appearance.m3colors.m3secondaryContainer, 0.4)
+                color: Appearance.auroraEverywhere 
+                    ? Appearance.aurora.colSubSurface 
+                    : ColorUtils.transparentize(Appearance.m3colors.m3secondaryContainer, 0.4)
                 opacity: (workspaceOccupied[index] && !(!activeWindow?.activated && currentWorkspaceNumber === index+1)) ? 1 : 0
 
                 Behavior on opacity {
@@ -503,7 +505,9 @@ Item {
                 topRightRadius: root.vertical ? radiusPrev : radiusNext
                 bottomRightRadius: radiusNext
                 
-                color: ColorUtils.transparentize(Appearance.m3colors.m3secondaryContainer, 0.4)
+                color: Appearance.auroraEverywhere 
+                    ? Appearance.aurora.colSubSurface 
+                    : ColorUtils.transparentize(Appearance.m3colors.m3secondaryContainer, 0.4)
 
                 Behavior on radiusPrev {
                     animation: Appearance.animation.elementMove.numberAnimation.createObject(this)
