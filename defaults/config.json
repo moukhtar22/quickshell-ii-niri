@@ -612,10 +612,7 @@
     "disableEffects": true,
     "disableNiriAnimations": true,
     "disableReloadToasts": true,
-    "minimalMode": true,
-    "checkInterval": 5000,
-    "niriWindowListUpdateIntervalMs": 100,
-    "niriWindowListUpdateIntervalMsGameMode": 500
+    "checkInterval": 2000
   },
   "reloadToasts": {
     "enable": true
