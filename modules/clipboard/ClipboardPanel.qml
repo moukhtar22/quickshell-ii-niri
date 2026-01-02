@@ -112,7 +112,10 @@ Scope {
     Connections {
         target: Cliphist
         function onEntriesChanged() {
-            root.updateFilteredModel()
+            // Only update model if clipboard panel is open to avoid lag
+            if (GlobalStates.clipboardOpen) {
+                root.updateFilteredModel()
+            }
         }
     }
 
@@ -125,6 +128,7 @@ Scope {
         function onClipboardOpenChanged() {
             if (GlobalStates.clipboardOpen) {
                 root.refresh()
+                root.updateFilteredModel()  // Update immediately with current entries
                 root.searchText = ""
                 root.showClearConfirmation = false
                 Qt.callLater(() => searchField.forceActiveFocus())

@@ -223,10 +223,11 @@ RippleButton {
             }
             Loader { // Clipboard image preview
                 // Don't use Layout.fillWidth - let the image determine its own size
+                // Use rowLayout.width to avoid binding loop with contentColumn
                 active: root.cliphistRawString && Cliphist.entryIsImage(root.cliphistRawString)
                 sourceComponent: CliphistImage {
                     entry: root.cliphistRawString
-                    maxWidth: contentColumn.width
+                    maxWidth: rowLayout.width - iconLoader.width - rowLayout.spacing - 50
                     maxHeight: root.compactClipboardPreview ? 80 : 140
                     blur: root.blurImage
                     blurText: root.blurImageText

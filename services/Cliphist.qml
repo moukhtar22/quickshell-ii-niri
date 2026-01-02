@@ -139,7 +139,7 @@ Singleton {
 
     Timer {
         id: delayedUpdateTimer
-        interval: Config.options?.hacks?.arbitraryRaceConditionDelay ?? 100
+        interval: 500 // Increased from 100 to reduce rapid updates
         repeat: false
         onTriggered: {
             root.refresh()
