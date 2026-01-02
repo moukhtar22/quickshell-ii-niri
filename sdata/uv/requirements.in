@@ -19,3 +19,6 @@ psutil
 click
 loguru
 tqdm
+
+# KDE/Qt theming (for wallpaper-based colors)
+kde-material-you-colors

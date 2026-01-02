@@ -761,6 +761,7 @@ Singleton {
                 property bool cardStyle: false
                 property bool keepRightSidebarLoaded: true
                 property bool keepLeftSidebarLoaded: true
+                property bool openFolderOnDownload: false // Open file manager after wallpaper download
                 property JsonObject translator: JsonObject {
                     property bool enable: true
                     property int delay: 300 // Delay before sending request. Reduces (potential) rate limits and lag.
