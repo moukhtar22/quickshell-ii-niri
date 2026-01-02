@@ -916,12 +916,15 @@ ContentPage {
                 SettingsSwitch {
                     buttonIcon: "branding_watermark"
                     text: Translation.tr("Use Card style")
+                    enabled: Appearance.globalStyle === "material"
                     checked: Config.options.sidebar?.cardStyle ?? false
                     onCheckedChanged: {
                         Config.options.sidebar.cardStyle = checked;
                     }
                     StyledToolTip {
-                        text: Translation.tr("Apply rounded card styling to sidebars")
+                        text: Appearance.globalStyle === "material" 
+                            ? Translation.tr("Apply rounded card styling to sidebars")
+                            : Translation.tr("Only available with Material global style")
                     }
                 }
             }
@@ -934,6 +937,16 @@ ContentPage {
                 }
                 StyledToolTip {
                     text: Translation.tr("When enabled keeps the content of the right sidebar loaded to reduce the delay when opening,\nat the cost of around 15MB of consistent RAM usage. Delay significance depends on your system's performance.\nUsing a custom kernel like linux-cachyos might help")
+                }
+            }
+
+            SettingsSwitch {
+                buttonIcon: "folder_open"
+                text: Translation.tr("Open folder after wallpaper download")
+                checked: Config.options.sidebar?.openFolderOnDownload ?? false
+                onCheckedChanged: Config.setNestedValue("sidebar.openFolderOnDownload", checked)
+                StyledToolTip {
+                    text: Translation.tr("Open file manager when downloading wallpapers from Wallhaven or Booru")
                 }
             }
 
