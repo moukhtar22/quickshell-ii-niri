@@ -544,7 +544,16 @@ ContentPage {
             ContentSubsection {
                 title: Translation.tr("Number style")
 
+                StyledText {
+                    visible: !Config.options?.bar?.workspaces?.alwaysShowNumbers
+                    text: Translation.tr("Enable 'Always show numbers' to see these styles")
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                }
+
                 ConfigSelectionArray {
+                    enabled: Config.options?.bar?.workspaces?.alwaysShowNumbers ?? false
+                    opacity: enabled ? 1 : 0.5
                     currentValue: JSON.stringify(Config.options.bar.workspaces.numberMap)
                     onSelected: newValue => {
                         Config.options.bar.workspaces.numberMap = JSON.parse(newValue)

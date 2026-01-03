@@ -18,7 +18,7 @@ Item {
     property bool borderless: Config.options?.bar?.borderless ?? false
     readonly property HyprlandMonitor monitor: CompositorService.isHyprland ? Hyprland.monitorFor(root.QsWindow.window?.screen) : null
     readonly property Toplevel activeWindow: ToplevelManager.activeToplevel
-    readonly property var wsConfig: Config.options?.bar.workspaces ?? {}
+    readonly property var wsConfig: Config.options?.bar?.workspaces ?? {}
     
     // Scroll behavior: "workspace" = switch workspaces, "column" = cycle windows left/right in same workspace
     readonly property string scrollBehavior: wsConfig.scrollBehavior ?? "workspace"
