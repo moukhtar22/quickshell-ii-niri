@@ -916,15 +916,15 @@ ContentPage {
                 SettingsSwitch {
                     buttonIcon: "branding_watermark"
                     text: Translation.tr("Use Card style")
-                    enabled: Appearance.globalStyle === "material"
+                    enabled: Appearance.globalStyle === "material" || Appearance.globalStyle === "inir"
                     checked: Config.options.sidebar?.cardStyle ?? false
                     onCheckedChanged: {
                         Config.options.sidebar.cardStyle = checked;
                     }
                     StyledToolTip {
-                        text: Appearance.globalStyle === "material" 
+                        text: (Appearance.globalStyle === "material" || Appearance.globalStyle === "inir")
                             ? Translation.tr("Apply rounded card styling to sidebars")
-                            : Translation.tr("Only available with Material global style")
+                            : Translation.tr("Only available with Material or Inir global style")
                     }
                 }
             }

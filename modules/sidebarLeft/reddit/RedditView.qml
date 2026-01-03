@@ -57,16 +57,16 @@ Item {
                     buttonText: modelData.text
                     toggled: root.currentSort === index
                     bounce: true
-                    colBackground: Appearance.inirEverywhere ? Appearance.inir.colLayer1
+                    colBackground: Appearance.inirEverywhere ? Appearance.inir.colLayer2
                         : Appearance.auroraEverywhere ? "transparent"
                         : Appearance.colors.colLayer1
-                    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover
+                    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover
                         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
                         : Appearance.colors.colLayer1Hover
-                    colBackgroundToggled: Appearance.inirEverywhere ? Appearance.inir.accent
+                    colBackgroundToggled: Appearance.inirEverywhere ? Appearance.inir.colSecondaryContainer
                         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
                         : Appearance.colors.colSecondaryContainer
-                    colBackgroundToggledHover: Appearance.inirEverywhere ? Appearance.inir.accentLight
+                    colBackgroundToggledHover: Appearance.inirEverywhere ? Appearance.inir.colPrimaryContainerHover
                         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceHover
                         : Appearance.colors.colSecondaryContainerHover
                     
@@ -95,16 +95,16 @@ Item {
                     buttonText: modelData
                     toggled: root.currentSubredditIndex === index
                     bounce: true
-                    colBackground: Appearance.inirEverywhere ? Appearance.inir.colLayer1
+                    colBackground: Appearance.inirEverywhere ? Appearance.inir.colLayer2
                         : Appearance.auroraEverywhere ? "transparent"
                         : Appearance.colors.colLayer1
-                    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover
+                    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover
                         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
                         : Appearance.colors.colLayer1Hover
-                    colBackgroundToggled: Appearance.inirEverywhere ? Appearance.inir.accent
+                    colBackgroundToggled: Appearance.inirEverywhere ? Appearance.inir.colSecondaryContainer
                         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
                         : Appearance.colors.colSecondaryContainer
-                    colBackgroundToggledHover: Appearance.inirEverywhere ? Appearance.inir.accentLight
+                    colBackgroundToggledHover: Appearance.inirEverywhere ? Appearance.inir.colPrimaryContainerHover
                         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceHover
                         : Appearance.colors.colSecondaryContainerHover
                     

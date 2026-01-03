@@ -54,7 +54,7 @@ Item {
         ...((root.animeEnabled && !root.animeCloset) ? [{"icon": "bookmark_heart", "name": Translation.tr("Anime")}] : []),
         ...(root.animeScheduleEnabled ? [{"icon": "calendar_month", "name": Translation.tr("Schedule")}] : []),
         ...(root.redditEnabled ? [{"icon": "forum", "name": Translation.tr("Reddit")}] : []),
-        ...(root.wallhavenEnabled ? [{"icon": "image", "name": Translation.tr("Wallhaven")}] : [])
+        ...(root.wallhavenEnabled ? [{"icon": "collections", "name": Translation.tr("Wallhaven")}] : [])
     ]
 
     function focusActiveItem() {
@@ -199,7 +199,7 @@ Item {
                                     case "bookmark_heart": return animeComp
                                     case "calendar_month": return animeScheduleComp
                                     case "forum": return redditComp
-                                    case "image": return wallhavenComp
+                                    case "collections": return wallhavenComp
                                     default: return null
                                 }
                             }

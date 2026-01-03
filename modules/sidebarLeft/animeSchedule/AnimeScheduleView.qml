@@ -65,16 +65,16 @@ Item {
                 buttonText: Translation.tr("Schedule")
                 toggled: root.currentTab === 0
                 bounce: true
-                colBackground: Appearance.inirEverywhere ? Appearance.inir.colLayer1
+                colBackground: Appearance.inirEverywhere ? Appearance.inir.colLayer2
                     : Appearance.auroraEverywhere ? "transparent"
                     : Appearance.colors.colLayer1
-                colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover
+                colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover
                     : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
                     : Appearance.colors.colLayer1Hover
-                colBackgroundToggled: Appearance.inirEverywhere ? Appearance.inir.accent
+                colBackgroundToggled: Appearance.inirEverywhere ? Appearance.inir.colSecondaryContainer
                     : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
                     : Appearance.colors.colSecondaryContainer
-                colBackgroundToggledHover: Appearance.inirEverywhere ? Appearance.inir.accentLight
+                colBackgroundToggledHover: Appearance.inirEverywhere ? Appearance.inir.colPrimaryContainerHover
                     : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceHover
                     : Appearance.colors.colSecondaryContainerHover
                 onClicked: {
@@ -89,16 +89,16 @@ Item {
                 buttonText: Translation.tr("Seasonal")
                 toggled: root.currentTab === 1
                 bounce: true
-                colBackground: Appearance.inirEverywhere ? Appearance.inir.colLayer1
+                colBackground: Appearance.inirEverywhere ? Appearance.inir.colLayer2
                     : Appearance.auroraEverywhere ? "transparent"
                     : Appearance.colors.colLayer1
-                colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover
+                colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover
                     : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
                     : Appearance.colors.colLayer1Hover
-                colBackgroundToggled: Appearance.inirEverywhere ? Appearance.inir.accent
+                colBackgroundToggled: Appearance.inirEverywhere ? Appearance.inir.colSecondaryContainer
                     : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
                     : Appearance.colors.colSecondaryContainer
-                colBackgroundToggledHover: Appearance.inirEverywhere ? Appearance.inir.accentLight
+                colBackgroundToggledHover: Appearance.inirEverywhere ? Appearance.inir.colPrimaryContainerHover
                     : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceHover
                     : Appearance.colors.colSecondaryContainerHover
                 onClicked: {
@@ -113,16 +113,16 @@ Item {
                 buttonText: Translation.tr("Top")
                 toggled: root.currentTab === 2
                 bounce: true
-                colBackground: Appearance.inirEverywhere ? Appearance.inir.colLayer1
+                colBackground: Appearance.inirEverywhere ? Appearance.inir.colLayer2
                     : Appearance.auroraEverywhere ? "transparent"
                     : Appearance.colors.colLayer1
-                colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover
+                colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover
                     : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
                     : Appearance.colors.colLayer1Hover
-                colBackgroundToggled: Appearance.inirEverywhere ? Appearance.inir.accent
+                colBackgroundToggled: Appearance.inirEverywhere ? Appearance.inir.colSecondaryContainer
                     : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
                     : Appearance.colors.colSecondaryContainer
-                colBackgroundToggledHover: Appearance.inirEverywhere ? Appearance.inir.accentLight
+                colBackgroundToggledHover: Appearance.inirEverywhere ? Appearance.inir.colPrimaryContainerHover
                     : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceHover
                     : Appearance.colors.colSecondaryContainerHover
                 onClicked: {
@@ -165,16 +165,16 @@ Item {
                         bounce: true
                         
                         // Same theming as tabs above
-                        colBackground: Appearance.inirEverywhere ? Appearance.inir.colLayer1
+                        colBackground: Appearance.inirEverywhere ? Appearance.inir.colLayer2
                             : Appearance.auroraEverywhere ? "transparent"
                             : Appearance.colors.colLayer1
-                        colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover
+                        colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover
                             : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
                             : Appearance.colors.colLayer1Hover
-                        colBackgroundToggled: Appearance.inirEverywhere ? Appearance.inir.accent
+                        colBackgroundToggled: Appearance.inirEverywhere ? Appearance.inir.colSecondaryContainer
                             : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
                             : Appearance.colors.colSecondaryContainer
-                        colBackgroundToggledHover: Appearance.inirEverywhere ? Appearance.inir.accentLight
+                        colBackgroundToggledHover: Appearance.inirEverywhere ? Appearance.inir.colPrimaryContainerHover
                             : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceHover
                             : Appearance.colors.colSecondaryContainerHover
                         

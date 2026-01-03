@@ -32,7 +32,8 @@ QtObject {
         // Files & Folders
         "folder": "󰉋", "folder_open": "󰝰", "create_new_folder": "󰉗",
         "file_present": "󰈔", "description": "󰈙", "article": "󰈙",
-        "image": "󰋩", "photo": "󰋩", "video_file": "󰕧", "audio_file": "󰎈",
+        "image": "󰋩", "photo": "󰋩", "photo_library": "󰉏", "collections": "󰉏",
+        "video_file": "󰕧", "audio_file": "󰎈",
         "picture_as_pdf": "󰈦", "code": "󰅩", "terminal": "󰆍",
         "download": "󰇚", "upload": "󰕒", "cloud_download": "󰇚", "cloud_upload": "󰕒",
         "save": "󰆓", "save_as": "󰆔",
@@ -58,7 +59,10 @@ QtObject {
         
         // Time & Calendar
         "schedule": "󰥔", "access_time": "󰥔", "timer": "󱎫", "alarm": "󰀠",
-        "calendar_today": "󰃭", "calendar_month": "󰃭", "event": "󰃭",
+        "calendar_today": "󰃭", "calendar_month": "󰃭", "event": "󰃭", "event_note": "󰃭",
+        
+        // Anime/TV
+        "live_tv": "󰔂", "tv": "󰔂", "movie": "󰎁", "theaters": "󰎁",
         "today": "󰃶", "date_range": "󰃭",
         "hourglass_empty": "󰞌", "hourglass_full": "󰞎",
         

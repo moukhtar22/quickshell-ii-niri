@@ -22,13 +22,13 @@ RippleButton {
     buttonRadius: cardRadius
     
     // Theming - aurora/inir/material
-    colBackground: Appearance.inirEverywhere ? Appearance.inir.colLayer1
+    colBackground: Appearance.inirEverywhere ? Appearance.inir.colLayer2
         : Appearance.auroraEverywhere ? "transparent"
         : Appearance.colors.colLayer1
-    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover
+    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover
         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
         : Appearance.colors.colLayer1Hover
-    colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer1Active
+    colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer2Active
         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceActive
         : Appearance.colors.colLayer1Active
     colBackgroundToggled: colBackgroundHover
@@ -208,7 +208,7 @@ RippleButton {
                     implicitWidth: typeText.implicitWidth + 8
                     implicitHeight: typeText.implicitHeight + 4
                     radius: Appearance.rounding.verysmall
-                    color: Appearance.inirEverywhere ? Appearance.inir.colLayer2
+                    color: Appearance.inirEverywhere ? Appearance.inir.colPrimaryContainer
                         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
                         : Appearance.colors.colSecondaryContainer
                     
@@ -217,7 +217,7 @@ RippleButton {
                         anchors.centerIn: parent
                         text: root.anime?.type ?? ""
                         font.pixelSize: Appearance.font.pixelSize.smallest
-                        color: Appearance.inirEverywhere ? Appearance.inir.foreground
+                        color: Appearance.inirEverywhere ? Appearance.inir.colOnPrimaryContainer
                             : Appearance.colors.colOnSecondaryContainer
                     }
                 }
@@ -232,7 +232,7 @@ RippleButton {
                 MaterialSymbol {
                     text: "schedule"
                     iconSize: Appearance.font.pixelSize.smaller
-                    color: Appearance.inirEverywhere ? Appearance.inir.accent : Appearance.colors.colPrimary
+                    color: Appearance.inirEverywhere ? Appearance.inir.colPrimary : Appearance.colors.colPrimary
                 }
                 StyledText {
                     Layout.fillWidth: true
@@ -256,7 +256,7 @@ RippleButton {
                         implicitWidth: genreText.implicitWidth + 6
                         implicitHeight: genreText.implicitHeight + 2
                         radius: Appearance.rounding.verysmall
-                        color: Appearance.inirEverywhere ? Appearance.inir.colLayer2
+                        color: Appearance.inirEverywhere ? Appearance.inir.colSecondaryContainer
                             : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
                             : Appearance.colors.colSurfaceContainer
                         
@@ -265,7 +265,7 @@ RippleButton {
                             anchors.centerIn: parent
                             text: modelData
                             font.pixelSize: Appearance.font.pixelSize.smallest
-                            color: Appearance.inirEverywhere ? Appearance.inir.subtext
+                            color: Appearance.inirEverywhere ? Appearance.inir.colOnSecondaryContainer
                                 : Appearance.colors.colOnSurfaceVariant
                         }
                     }

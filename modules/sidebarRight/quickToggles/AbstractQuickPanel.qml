@@ -6,13 +6,16 @@ Rectangle {
     id: root
 
     property bool editMode: false
+    readonly property bool cardStyle: Config.options?.sidebar?.cardStyle ?? false
 
     radius: Appearance.inirEverywhere ? Appearance.inir.roundingNormal : Appearance.rounding.normal
-    color: Appearance.inirEverywhere ? Appearance.inir.colLayer1
-         : Appearance.auroraEverywhere ? "transparent" 
-         : Appearance.colors.colLayer1
-    border.width: Appearance.inirEverywhere ? 1 : 0
-    border.color: Appearance.inirEverywhere ? Appearance.inir.colBorder : "transparent"
+    color: cardStyle 
+        ? (Appearance.inirEverywhere ? Appearance.inir.colLayer1
+            : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
+            : Appearance.colors.colLayer1)
+        : "transparent"
+    border.width: 0
+    border.color: "transparent"
 
     signal openAudioOutputDialog()
     signal openAudioInputDialog()
