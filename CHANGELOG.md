@@ -5,6 +5,23 @@ All notable changes to iNiR will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-01-03
+
+### Added
+- **Reddit tab**: Browse subreddits in sidebar left (disabled by default)
+- **Anime Schedule tab**: View anime schedule, seasonal, and top airing from Jikan API (disabled by default)
+- **NerdIconMap entries**: Added collections, photo_library, live_tv, tv, movie icons
+
+### Changed
+- Wallhaven tab icon changed to `collections` for better Nerd Font glyph in inir style
+- Card style toggle now available for inir global style
+
+### Fixed
+- Inir button colors in Reddit/Anime tabs using valid color properties
+- AnimeCard type badge and genre tags with proper inir container colors
+- Optional chaining in Workspaces.qml (`bar?.workspaces`)
+- Number style selector disabled when 'Always show numbers' is off
+
 ## [2.4.0] - 2026-01-02
 
 ### Added
