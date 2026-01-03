@@ -10,7 +10,7 @@ MouseArea {
     id: root
     required property var fileModelData
     property bool isDirectory: fileModelData.fileIsDir
-    property bool useThumbnail: Images.isValidImageByName(fileModelData.fileName)
+    property bool useThumbnail: Images.isValidMediaByName(fileModelData.fileName)
     property bool isSelected: false
     property bool isHovered: false
 

@@ -63,7 +63,7 @@ Singleton {
     property url defaultFolder: Qt.resolvedUrl(`${Directories.pictures}/Wallpapers`)
     property alias folderModel: folderModel
     property string searchQuery: ""
-    readonly property list<string> extensions: ["jpg", "jpeg", "png", "webp", "avif", "bmp", "svg"]
+    readonly property list<string> extensions: ["jpg", "jpeg", "png", "webp", "avif", "bmp", "svg", "gif", "mp4", "webm", "mkv", "avi", "mov"]
     property list<string> wallpapers: []
     readonly property bool thumbnailGenerationRunning: thumbgenProc.running
     property real thumbnailGenerationProgress: 0
@@ -160,7 +160,17 @@ Singleton {
         id: folderModel
         folder: Qt.resolvedUrl(root.defaultFolder)
         caseSensitive: false
-        nameFilters: root.extensions.map(ext => `*${root.searchQuery.split(" ").filter(s => s.length > 0).map(s => `*${s}*`)}*.${ext}`)
+        nameFilters: {
+            const query = root.searchQuery.trim().toLowerCase()
+            // Check if query is an extension filter (e.g., ".gif", ".mp4")
+            if (query.startsWith(".")) {
+                const ext = query.slice(1)
+                if (root.extensions.includes(ext)) return [`*.${ext}`]
+            }
+            // Normal search: apply query to all extensions
+            const searchParts = query.split(" ").filter(s => s.length > 0).map(s => `*${s}*`).join("")
+            return root.extensions.map(ext => `*${searchParts}*.${ext}`)
+        }
         showDirs: true
         showDotAndDotDot: false
         showOnlyReadable: true
