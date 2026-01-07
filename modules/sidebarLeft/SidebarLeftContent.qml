@@ -47,6 +47,7 @@ Item {
     property bool wallhavenEnabled: Config.options.sidebar?.wallhaven?.enable !== false
     property bool widgetsEnabled: Config.options?.sidebar?.widgets?.enable ?? true
     property bool toolsEnabled: Config.options?.sidebar?.tools?.enable ?? false
+    property bool ytMusicEnabled: Config.options?.sidebar?.ytmusic?.enable ?? false
     
     property var tabButtonList: [
         ...(root.widgetsEnabled ? [{"icon": "widgets", "name": Translation.tr("Widgets")}] : []),
@@ -56,6 +57,7 @@ Item {
         ...(root.animeScheduleEnabled ? [{"icon": "calendar_month", "name": Translation.tr("Schedule")}] : []),
         ...(root.redditEnabled ? [{"icon": "forum", "name": Translation.tr("Reddit")}] : []),
         ...(root.wallhavenEnabled ? [{"icon": "collections", "name": Translation.tr("Wallhaven")}] : []),
+        ...(root.ytMusicEnabled ? [{"icon": "library_music", "name": Translation.tr("YT Music")}] : []),
         ...(root.toolsEnabled ? [{"icon": "build", "name": Translation.tr("Tools")}] : [])
     ]
 
@@ -202,6 +204,7 @@ Item {
                                     case "calendar_month": return animeScheduleComp
                                     case "forum": return redditComp
                                     case "collections": return wallhavenComp
+                                    case "library_music": return ytMusicComp
                                     case "build": return toolsComp
                                     default: return null
                                 }
@@ -219,6 +222,7 @@ Item {
         Component { id: animeScheduleComp; AnimeScheduleView {} }
         Component { id: redditComp; RedditView {} }
         Component { id: wallhavenComp; WallhavenView {} }
+        Component { id: ytMusicComp; YtMusicView {} }
         Component { id: toolsComp; ToolsView {} }
 
         Keys.onPressed: (event) => {

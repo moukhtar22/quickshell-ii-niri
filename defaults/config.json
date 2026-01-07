@@ -38,6 +38,14 @@
         "harmonizeThreshold": 100,
         "harmony": 0.8,
         "termFgBoost": 0.5
+      },
+      "terminals": {
+        "kitty": true,
+        "alacritty": true,
+        "foot": true,
+        "wezterm": true,
+        "ghostty": true,
+        "konsole": true
       }
     }
   },
@@ -752,7 +760,15 @@
         "vertical": false,
         "widgetsFactor": 0.7
       },
-      "widgets": {
+    "ytmusic": {
+      "enable": false,
+      "browser": "firefox",
+      "cookiesPath": "",
+      "recentSearches": [],
+      "queue": [],
+      "playlists": []
+    },
+    "widgets": {
         "clock": {
           "enable": false
         },
