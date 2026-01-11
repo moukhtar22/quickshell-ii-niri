@@ -1,5 +1,7 @@
 import QtQuick
 import QtQuick.Layouts
+import QtQuick.Controls
+import Quickshell
 import qs.services
 import qs.modules.common
 import qs.modules.common.widgets
@@ -26,6 +28,7 @@ ContentPage {
             
             property string searchQuery: ""
             property int selectedTab: 0  // 0=All, 1=Dark, 2=Light
+            property var selectedTags: []  // Active tag filters
             
             function isDarkTheme(preset) {
                 if (preset.id === "auto" || preset.id === "custom") return true
@@ -37,12 +40,30 @@ ContentPage {
                 return (0.299 * r + 0.587 * g + 0.114 * b) < 0.5
             }
             
+            function toggleTag(tagId) {
+                const idx = selectedTags.indexOf(tagId)
+                if (idx >= 0) {
+                    selectedTags = selectedTags.filter(t => t !== tagId)
+                } else {
+                    selectedTags = [...selectedTags, tagId]
+                }
+            }
+            
             readonly property var filteredPresets: {
                 let result = []
+                const favorites = Config.options?.appearance?.favoriteThemes ?? []
                 for (let i = 0; i < ThemePresets.presets.length; i++) {
                     const preset = ThemePresets.presets[i]
+                    // Dark/Light filter
                     if (selectedTab === 1 && !isDarkTheme(preset)) continue
                     if (selectedTab === 2 && isDarkTheme(preset)) continue
+                    // Tag filter - preset must have ALL selected tags
+                    if (selectedTags.length > 0) {
+                        const presetTags = preset.tags ?? []
+                        const hasAllTags = selectedTags.every(t => presetTags.includes(t))
+                        if (!hasAllTags) continue
+                    }
+                    // Search filter
                     if (searchQuery.length > 0) {
                         const query = searchQuery.toLowerCase()
                         const name = (preset.name ?? "").toLowerCase()
@@ -51,6 +72,12 @@ ContentPage {
                     }
                     result.push(preset)
                 }
+                // Sort: favorites first
+                result.sort((a, b) => {
+                    const aFav = favorites.includes(a.id) ? 0 : 1
+                    const bFav = favorites.includes(b.id) ? 0 : 1
+                    return aFav - bFav
+                })
                 return result
             }
 
@@ -116,6 +143,36 @@ ContentPage {
                     }
                 }
 
+                // Soften colors toggle
+                Rectangle {
+                    width: 32
+                    height: 32
+                    radius: 16
+                    color: Config.options?.appearance?.softenColors ? Appearance.m3colors.m3primary : Appearance.colors.colLayer1
+                    
+                    MaterialSymbol {
+                        anchors.centerIn: parent
+                        text: "opacity"
+                        iconSize: 16
+                        color: Config.options?.appearance?.softenColors ? Appearance.m3colors.m3onPrimary : Appearance.colors.colOnLayer1
+                    }
+
+                    MouseArea {
+                        id: softenMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            const val = !(Config.options?.appearance?.softenColors ?? true)
+                            Config.setNestedValue("appearance.softenColors", val)
+                            // Regenerate theme (for auto theme, regenerates from wallpaper)
+                            ThemeService.regenerateAutoTheme()
+                        }
+                    }
+                    
+                    StyledToolTip { text: Translation.tr("Soften colors (less intense)"); visible: softenMouse.containsMouse }
+                }
+
                 // Tab pills
                 Row {
                     spacing: 4
@@ -161,47 +218,696 @@ ContentPage {
                 }
             }
 
-            // Theme grid - 2 columns
-            Grid {
+            // Tag filters
+            Flow {
+                id: tagFlow
                 Layout.fillWidth: true
-                Layout.topMargin: 10
-                columns: 2
-                columnSpacing: 6
-                rowSpacing: 6
-
+                Layout.topMargin: 6
+                spacing: 4
+                
+                property bool hovered: false
+                
                 Repeater {
-                    model: themesGroup.filteredPresets
+                    // Filter tags based on selectedTab (exclude dark/light since we have tabs)
+                    model: ThemePresets.availableTags.filter(t => t.id !== "dark" && t.id !== "light")
 
-                    ThemePresetCard {
+                    Rectangle {
                         required property var modelData
-                        width: (parent.width - parent.columnSpacing) / 2
-                        preset: modelData
-                        onClicked: ThemeService.setTheme(modelData.id)
+                        
+                        readonly property bool isActive: themesGroup.selectedTags.includes(modelData.id)
+                        
+                        width: tagRow.implicitWidth + 12
+                        height: 24
+                        radius: 12
+                        color: isActive ? Appearance.colors.colPrimaryContainer 
+                             : tagMouse.containsMouse ? Appearance.colors.colLayer1Hover 
+                             : Appearance.colors.colLayer1
+
+                        RowLayout {
+                            id: tagRow
+                            anchors.centerIn: parent
+                            spacing: 3
+
+                            MaterialSymbol {
+                                text: modelData.icon
+                                iconSize: 12
+                                color: parent.parent.isActive ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colOnLayer1
+                            }
+
+                            StyledText {
+                                text: modelData.name
+                                font.pixelSize: Appearance.font.pixelSize.smallest
+                                color: parent.parent.isActive ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colOnLayer1
+                            }
+                        }
+
+                        MouseArea {
+                            id: tagMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: themesGroup.toggleTag(modelData.id)
+                            onContainsMouseChanged: tagFlow.hovered = containsMouse
+                        }
+                    }
+                }
+                
+                // Clear all tags button
+                Rectangle {
+                    visible: themesGroup.selectedTags.length > 0
+                    width: 24
+                    height: 24
+                    radius: 12
+                    color: clearMouse.containsMouse ? Appearance.colors.colLayer1Hover : Appearance.colors.colLayer1
+
+                    MaterialSymbol {
+                        anchors.centerIn: parent
+                        text: "close"
+                        iconSize: 12
+                        color: Appearance.colors.colSubtext
+                    }
+
+                    MouseArea {
+                        id: clearMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: themesGroup.selectedTags = []
+                    }
+                    
+                    StyledToolTip { text: Translation.tr("Clear filters"); visible: clearMouse.containsMouse }
+                }
+            }
+
+            // Quick Access - Favorites + Recent (unified)
+            ColumnLayout {
+                id: quickAccessSection
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                spacing: 6
+
+                // Compute quick access items: favorites first, then recent (excluding duplicates)
+                readonly property var quickAccessItems: {
+                    const favs = Config.options?.appearance?.favoriteThemes ?? []
+                    const recent = Config.options?.appearance?.recentThemes ?? []
+
+                    // Collect IDs: favorites first, then recent (excluding duplicates)
+                    let ids = favs.slice()
+                    let recentCount = 0
+                    for (let i = 0; i < recent.length && recentCount < 4; i++) {
+                        if (!favs.includes(recent[i])) {
+                            ids.push(recent[i])
+                            recentCount++
+                        }
+                    }
+
+                    // Map to presets
+                    let result = []
+                    for (let i = 0; i < ids.length; i++) {
+                        const preset = ThemePresets.presets.find(p => p.id === ids[i])
+                        if (preset) result.push(preset)
+                    }
+                    return result
+                }
+
+                visible: quickAccessItems.length > 0 && themesGroup.selectedTags.length === 0 && themesGroup.searchQuery.length === 0
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    MaterialSymbol {
+                        text: "bolt"
+                        iconSize: 14
+                        color: Appearance.m3colors.m3primary
+                    }
+
+                    StyledText {
+                        text: Translation.tr("Quick Access")
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        font.weight: Font.Medium
+                        color: Appearance.colors.colSubtext
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    StyledText {
+                        visible: (Config.options?.appearance?.favoriteThemes?.length ?? 0) > 0
+                        text: "★ " + (Config.options?.appearance?.favoriteThemes?.length ?? 0)
+                        font.pixelSize: Appearance.font.pixelSize.smallest
+                        color: Appearance.m3colors.m3tertiary
+                    }
+                }
+
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    Repeater {
+                        model: quickAccessSection.quickAccessItems
+
+                        ThemePresetCard {
+                            required property var modelData
+                            width: Math.min(160, (parent.width - 8) / 3)
+                            preset: modelData
+                            onClicked: ThemeService.setTheme(modelData.id)
+                        }
                     }
                 }
             }
 
-            // Empty state
+            // Wallpaper Dominant Colors
             ColumnLayout {
-                visible: themesGroup.filteredPresets.length === 0
                 Layout.fillWidth: true
-                Layout.topMargin: 20
-                Layout.bottomMargin: 20
-                spacing: 8
+                Layout.topMargin: 8
+                spacing: 6
+                visible: Config.options?.background?.wallpaperPath?.length > 0
 
-                MaterialSymbol {
-                    Layout.alignment: Qt.AlignHCenter
-                    text: "search_off"
-                    iconSize: 32
-                    color: Appearance.colors.colSubtext
-                    opacity: 0.5
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 6
+
+                    StyledText {
+                        text: Translation.tr("Wallpaper Colors")
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        font.weight: Font.Medium
+                        color: Appearance.colors.colSubtext
+                    }
+
+                    Item { Layout.fillWidth: true }
+
+                    // Copy color button
+                    StyledText {
+                        text: Translation.tr("Click to copy")
+                        font.pixelSize: Appearance.font.pixelSize.smallest
+                        color: Appearance.colors.colSubtext
+                        opacity: 0.6
+                    }
                 }
 
-                StyledText {
-                    Layout.alignment: Qt.AlignHCenter
-                    text: Translation.tr("No themes found")
-                    font.pixelSize: Appearance.font.pixelSize.small
-                    color: Appearance.colors.colSubtext
+                ColorQuantizer {
+                    id: wallpaperQuantizer
+                    property string wallpaperPath: Config.options?.background?.wallpaperPath ?? ""
+                    property bool isVideo: wallpaperPath.endsWith(".mp4") || wallpaperPath.endsWith(".webm")
+                    source: wallpaperPath.length > 0 ? Qt.resolvedUrl(isVideo ? Config.options?.background?.thumbnailPath : wallpaperPath) : ""
+                    depth: 3  // 2^3 = 8 colors
+                    rescaleSize: 64
+                }
+
+                Row {
+                    Layout.fillWidth: true
+                    spacing: 4
+
+                    Repeater {
+                        model: wallpaperQuantizer.colors ?? []
+
+                        Rectangle {
+                            required property var modelData
+                            required property int index
+                            
+                            width: (parent.width - 28) / 8
+                            height: 28
+                            radius: 6
+                            color: modelData ?? "transparent"
+                            border.width: colorMouse.containsMouse ? 2 : 0
+                            border.color: Appearance.colors.colOnLayer1
+
+                            MouseArea {
+                                id: colorMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    if (modelData) Quickshell.clipboardText = String(modelData).toUpperCase()
+                                }
+                            }
+
+                            StyledToolTip {
+                                text: modelData ? String(modelData).toUpperCase() : ""
+                                visible: colorMouse.containsMouse && modelData
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Theme grid - scrollable with 3 columns
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.topMargin: 10
+                Layout.preferredHeight: Math.min(300, themeGridContent.implicitHeight + 12)
+                color: Appearance.colors.colLayer1
+                radius: Appearance.rounding.small
+                clip: true
+
+                ScrollView {
+                    id: themeScrollView
+                    anchors.fill: parent
+                    anchors.margins: 6
+                    contentWidth: availableWidth
+                    ScrollBar.horizontal.policy: ScrollBar.AlwaysOff
+                    ScrollBar.vertical.policy: themeGridContent.implicitHeight > parent.height - 12 ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+
+                    Grid {
+                        id: themeGridContent
+                        width: themeScrollView.availableWidth
+                        columns: 3
+                        columnSpacing: 4
+                        rowSpacing: 4
+
+                        Repeater {
+                            model: themesGroup.filteredPresets
+
+                            ThemePresetCard {
+                                required property var modelData
+                                width: (themeGridContent.width - themeGridContent.columnSpacing * 2) / 3
+                                preset: modelData
+                                onClicked: ThemeService.setTheme(modelData.id)
+                            }
+                        }
+                    }
+                }
+
+                // Empty state overlay
+                ColumnLayout {
+                    visible: themesGroup.filteredPresets.length === 0
+                    anchors.centerIn: parent
+                    spacing: 8
+
+                    MaterialSymbol {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: "search_off"
+                        iconSize: 32
+                        color: Appearance.colors.colSubtext
+                        opacity: 0.5
+                    }
+
+                    StyledText {
+                        Layout.alignment: Qt.AlignHCenter
+                        text: Translation.tr("No themes found")
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        color: Appearance.colors.colSubtext
+                    }
+                }
+            }
+        }
+    }
+
+    // Theme Scheduling Section
+    SettingsCardSection {
+        expanded: false
+        icon: "schedule"
+        title: Translation.tr("Theme Scheduling")
+
+        SettingsGroup {
+            ConfigSwitch {
+                buttonIcon: "schedule"
+                text: Translation.tr("Enable automatic theme switching")
+                checked: Config.options?.appearance?.themeSchedule?.enabled ?? false
+                onCheckedChanged: Config.setNestedValue("appearance.themeSchedule.enabled", checked)
+            }
+
+            // Day theme selector
+            RowLayout {
+                visible: Config.options?.appearance?.themeSchedule?.enabled ?? false
+                Layout.fillWidth: true
+                spacing: 8
+
+                MaterialSymbol { text: "light_mode"; iconSize: 18; color: Appearance.colors.colSubtext }
+                StyledText { text: Translation.tr("Day theme"); Layout.fillWidth: true }
+
+                Item {
+                    Layout.preferredWidth: 150
+                    Layout.preferredHeight: 32
+
+                    RippleButton {
+                        id: dayThemeBtn
+                        anchors.fill: parent
+                        colBackground: Appearance.colors.colLayer2
+                        colBackgroundHover: Appearance.colors.colLayer2Hover
+
+                        contentItem: RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 10
+                            anchors.rightMargin: 10
+
+                            StyledText {
+                                Layout.fillWidth: true
+                                text: ThemePresets.presets.find(p => p.id === (Config.options?.appearance?.themeSchedule?.dayTheme ?? "auto"))?.name ?? "Auto"
+                                font.pixelSize: Appearance.font.pixelSize.smaller
+                                elide: Text.ElideRight
+                            }
+                            MaterialSymbol { text: dayThemePopup.visible ? "expand_less" : "expand_more"; iconSize: 14; color: Appearance.colors.colSubtext }
+                        }
+
+                        onClicked: dayThemePopup.visible ? dayThemePopup.close() : dayThemePopup.open()
+                    }
+
+                    Popup {
+                        id: dayThemePopup
+                        y: dayThemeBtn.height + 4
+                        width: parent.width
+                        height: Math.min(200, dayThemeList.contentHeight + 16)
+                        padding: 8
+
+                        background: Rectangle {
+                            color: Appearance.colors.colLayer2Base
+                            radius: Appearance.rounding.small
+                            border.width: 1
+                            border.color: Appearance.colors.colLayer0Border
+                        }
+
+                        ListView {
+                            id: dayThemeList
+                            anchors.fill: parent
+                            clip: true
+                            model: ThemePresets.presets
+
+                            delegate: RippleButton {
+                                required property var modelData
+                                width: dayThemeList.width
+                                implicitHeight: 28
+                                colBackground: modelData.id === (Config.options?.appearance?.themeSchedule?.dayTheme ?? "auto") ? Appearance.colors.colPrimaryContainer : "transparent"
+                                colBackgroundHover: Appearance.colors.colLayer1Hover
+
+                                contentItem: StyledText {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 8
+                                    text: modelData.name
+                                    font.pixelSize: Appearance.font.pixelSize.smaller
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+
+                                onClicked: {
+                                    Config.setNestedValue("appearance.themeSchedule.dayTheme", modelData.id)
+                                    dayThemePopup.close()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Night theme selector
+            RowLayout {
+                visible: Config.options?.appearance?.themeSchedule?.enabled ?? false
+                Layout.fillWidth: true
+                spacing: 8
+
+                MaterialSymbol { text: "dark_mode"; iconSize: 18; color: Appearance.colors.colSubtext }
+                StyledText { text: Translation.tr("Night theme"); Layout.fillWidth: true }
+
+                Item {
+                    Layout.preferredWidth: 150
+                    Layout.preferredHeight: 32
+
+                    RippleButton {
+                        id: nightThemeBtn
+                        anchors.fill: parent
+                        colBackground: Appearance.colors.colLayer2
+                        colBackgroundHover: Appearance.colors.colLayer2Hover
+
+                        contentItem: RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 10
+                            anchors.rightMargin: 10
+
+                            StyledText {
+                                Layout.fillWidth: true
+                                text: ThemePresets.presets.find(p => p.id === (Config.options?.appearance?.themeSchedule?.nightTheme ?? "auto"))?.name ?? "Auto"
+                                font.pixelSize: Appearance.font.pixelSize.smaller
+                                elide: Text.ElideRight
+                            }
+                            MaterialSymbol { text: nightThemePopup.visible ? "expand_less" : "expand_more"; iconSize: 14; color: Appearance.colors.colSubtext }
+                        }
+
+                        onClicked: nightThemePopup.visible ? nightThemePopup.close() : nightThemePopup.open()
+                    }
+
+                    Popup {
+                        id: nightThemePopup
+                        y: nightThemeBtn.height + 4
+                        width: parent.width
+                        height: Math.min(200, nightThemeList.contentHeight + 16)
+                        padding: 8
+
+                        background: Rectangle {
+                            color: Appearance.colors.colLayer2Base
+                            radius: Appearance.rounding.small
+                            border.width: 1
+                            border.color: Appearance.colors.colLayer0Border
+                        }
+
+                        ListView {
+                            id: nightThemeList
+                            anchors.fill: parent
+                            clip: true
+                            model: ThemePresets.presets
+
+                            delegate: RippleButton {
+                                required property var modelData
+                                width: nightThemeList.width
+                                implicitHeight: 28
+                                colBackground: modelData.id === (Config.options?.appearance?.themeSchedule?.nightTheme ?? "auto") ? Appearance.colors.colPrimaryContainer : "transparent"
+                                colBackgroundHover: Appearance.colors.colLayer1Hover
+
+                                contentItem: StyledText {
+                                    anchors.fill: parent
+                                    anchors.leftMargin: 8
+                                    text: modelData.name
+                                    font.pixelSize: Appearance.font.pixelSize.smaller
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+
+                                onClicked: {
+                                    Config.setNestedValue("appearance.themeSchedule.nightTheme", modelData.id)
+                                    nightThemePopup.close()
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Time settings
+            RowLayout {
+                visible: Config.options?.appearance?.themeSchedule?.enabled ?? false
+                Layout.fillWidth: true
+                spacing: 8
+
+                MaterialSymbol { text: "wb_sunny"; iconSize: 18; color: Appearance.colors.colSubtext }
+                StyledText { text: Translation.tr("Day starts at"); Layout.fillWidth: true }
+
+                StyledSpinBox {
+                    id: dayHourSpin
+                    from: 0; to: 23
+                    value: parseInt((Config.options?.appearance?.themeSchedule?.dayStart ?? "06:00").split(":")[0]) || 6
+                    textFromValue: (v) => v.toString().padStart(2, '0')
+                    onValueModified: Config.setNestedValue("appearance.themeSchedule.dayStart", 
+                        `${textFromValue(value)}:${dayMinSpin.textFromValue(dayMinSpin.value)}`)
+                }
+                StyledText { text: ":"; font.pixelSize: Appearance.font.pixelSize.large; color: Appearance.colors.colSubtext }
+                StyledSpinBox {
+                    id: dayMinSpin
+                    from: 0; to: 59; stepSize: 5
+                    value: parseInt((Config.options?.appearance?.themeSchedule?.dayStart ?? "06:00").split(":")[1]) || 0
+                    textFromValue: (v) => v.toString().padStart(2, '0')
+                    onValueModified: Config.setNestedValue("appearance.themeSchedule.dayStart",
+                        `${dayHourSpin.textFromValue(dayHourSpin.value)}:${textFromValue(value)}`)
+                }
+            }
+
+            RowLayout {
+                visible: Config.options?.appearance?.themeSchedule?.enabled ?? false
+                Layout.fillWidth: true
+                spacing: 8
+
+                MaterialSymbol { text: "nights_stay"; iconSize: 18; color: Appearance.colors.colSubtext }
+                StyledText { text: Translation.tr("Night starts at"); Layout.fillWidth: true }
+
+                StyledSpinBox {
+                    id: nightHourSpin
+                    from: 0; to: 23
+                    value: parseInt((Config.options?.appearance?.themeSchedule?.nightStart ?? "18:00").split(":")[0]) || 18
+                    textFromValue: (v) => v.toString().padStart(2, '0')
+                    onValueModified: Config.setNestedValue("appearance.themeSchedule.nightStart",
+                        `${textFromValue(value)}:${nightMinSpin.textFromValue(nightMinSpin.value)}`)
+                }
+                StyledText { text: ":"; font.pixelSize: Appearance.font.pixelSize.large; color: Appearance.colors.colSubtext }
+                StyledSpinBox {
+                    id: nightMinSpin
+                    from: 0; to: 59; stepSize: 5
+                    value: parseInt((Config.options?.appearance?.themeSchedule?.nightStart ?? "18:00").split(":")[1]) || 0
+                    textFromValue: (v) => v.toString().padStart(2, '0')
+                    onValueModified: Config.setNestedValue("appearance.themeSchedule.nightStart",
+                        `${nightHourSpin.textFromValue(nightHourSpin.value)}:${textFromValue(value)}`)
+                }
+            }
+        }
+    }
+
+    // Terminal Colors Section
+    SettingsCardSection {
+        expanded: false
+        icon: "terminal"
+        title: Translation.tr("Terminal Colors")
+
+        SettingsGroup {
+            StyledText {
+                Layout.fillWidth: true
+                text: Translation.tr("Adjust how terminal colors are generated from the current theme. Changes apply to all color themes.")
+                color: Appearance.colors.colSubtext
+                font.pixelSize: Appearance.font.pixelSize.smaller
+                wrapMode: Text.WordWrap
+            }
+
+            ConfigSwitch {
+                buttonIcon: "terminal"
+                text: Translation.tr("Enable terminal theming")
+                checked: Config.options?.appearance?.wallpaperTheming?.enableTerminal ?? true
+                onCheckedChanged: Config.setNestedValue("appearance.wallpaperTheming.enableTerminal", checked)
+            }
+
+            // Terminal color preview
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.topMargin: 8
+                spacing: 4
+
+                Repeater {
+                    model: 16
+
+                    Rectangle {
+                        required property int index
+                        Layout.fillWidth: true
+                        height: 24
+                        radius: index === 0 ? 4 : (index === 15 ? 4 : 0)
+                        
+                        // Preview colors based on current settings
+                        color: {
+                            const isDark = Appearance.m3colors.darkmode;
+                            const adj = Config.options?.appearance?.wallpaperTheming?.terminalColorAdjustments ?? {};
+                            const sat = adj.saturation ?? 0.40;
+                            const bright = adj.brightness ?? 0.55;
+                            const harmony = adj.harmony ?? 0.15;
+                            
+                            // Simplified preview - actual generation is more complex
+                            if (index === 0) return Appearance.m3colors.m3surfaceContainerLowest;
+                            if (index === 7) return Appearance.m3colors.m3onSurfaceVariant;
+                            if (index === 8) return Appearance.m3colors.m3outline;
+                            if (index === 15) return Appearance.m3colors.m3onBackground;
+                            
+                            // Semantic colors with approximate hues
+                            const hues = [0, 0.98, 0.36, 0.12, 0.58, 0.85, 0.48, 0, 0, 0.98, 0.36, 0.12, 0.58, 0.85, 0.48, 0];
+                            const isBright = index >= 9;
+                            const l = isDark ? (isBright ? bright + 0.12 : bright) : (isBright ? (1 - bright) - 0.10 : (1 - bright));
+                            const s = isBright ? sat + 0.08 : sat;
+                            return Qt.hsla(hues[index], s, l, 1.0);
+                        }
+
+                        StyledToolTip {
+                            text: ["black", "red", "green", "yellow", "blue", "magenta", "cyan", "white",
+                                   "bright black", "bright red", "bright green", "bright yellow", 
+                                   "bright blue", "bright magenta", "bright cyan", "bright white"][index]
+                            visible: previewMouse.containsMouse
+                        }
+
+                        MouseArea {
+                            id: previewMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                        }
+                    }
+                }
+            }
+
+            // Saturation slider
+            ConfigSpinBox {
+                id: saturationSpinBox
+                icon: "palette"
+                text: Translation.tr("Color Saturation") + " (%)"
+                value: Math.round((Config.options?.appearance?.wallpaperTheming?.terminalColorAdjustments?.saturation ?? 0.40) * 100)
+                from: 10
+                to: 80
+                stepSize: 5
+                property bool _ready: false
+                Component.onCompleted: _ready = true
+                onValueChanged: {
+                    if (!_ready) return;
+                    Config.setNestedValue("appearance.wallpaperTheming.terminalColorAdjustments.saturation", value / 100);
+                    ThemeService.regenerateAutoTheme();
+                }
+            }
+
+            // Brightness slider
+            ConfigSpinBox {
+                id: brightnessSpinBox
+                icon: "brightness_6"
+                text: Translation.tr("Color Brightness") + " (%)"
+                value: Math.round((Config.options?.appearance?.wallpaperTheming?.terminalColorAdjustments?.brightness ?? 0.55) * 100)
+                from: 35
+                to: 75
+                stepSize: 5
+                property bool _ready: false
+                Component.onCompleted: _ready = true
+                onValueChanged: {
+                    if (!_ready) return;
+                    Config.setNestedValue("appearance.wallpaperTheming.terminalColorAdjustments.brightness", value / 100);
+                    ThemeService.regenerateAutoTheme();
+                }
+            }
+
+            // Harmony slider
+            ConfigSpinBox {
+                id: harmonySpinBox
+                icon: "tune"
+                text: Translation.tr("Theme Harmony") + " (%)"
+                value: Math.round((Config.options?.appearance?.wallpaperTheming?.terminalColorAdjustments?.harmony ?? 0.15) * 100)
+                from: 0
+                to: 50
+                stepSize: 5
+                property bool _ready: false
+                Component.onCompleted: _ready = true
+                onValueChanged: {
+                    if (!_ready) return;
+                    Config.setNestedValue("appearance.wallpaperTheming.terminalColorAdjustments.harmony", value / 100);
+                    ThemeService.regenerateAutoTheme();
+                }
+            }
+
+            // Reset button
+            RippleButton {
+                Layout.alignment: Qt.AlignRight
+                Layout.topMargin: 8
+                implicitWidth: resetRow.implicitWidth + 16
+                implicitHeight: 32
+                buttonRadius: Appearance.rounding.small
+                colBackground: Appearance.colors.colLayer1
+                colBackgroundHover: Appearance.colors.colLayer1Hover
+
+                contentItem: RowLayout {
+                    id: resetRow
+                    anchors.centerIn: parent
+                    spacing: 6
+
+                    MaterialSymbol {
+                        text: "restart_alt"
+                        iconSize: 14
+                        color: Appearance.colors.colOnLayer1
+                    }
+
+                    StyledText {
+                        text: Translation.tr("Reset to defaults")
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                    }
+                }
+
+                onClicked: {
+                    // Update spinbox values directly (this triggers onValueChanged which saves to config)
+                    saturationSpinBox.value = 40;  // 0.40 * 100
+                    brightnessSpinBox.value = 55;  // 0.55 * 100
+                    harmonySpinBox.value = 15;     // 0.15 * 100
+                    // Note: ThemeService.regenerateAutoTheme() is called by onValueChanged
                 }
             }
         }
@@ -362,7 +1068,7 @@ ContentPage {
                             }
 
                             onClicked: StylePresets.applyPreset(modelData.id)
-                            StyledToolTip { text: modelData.description }
+                            StyledToolTip { text: modelData.description; visible: parent.buttonHovered }
                         }
                     }
                 }

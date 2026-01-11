@@ -8,7 +8,8 @@ Item {
     id: root
     required property var preset
     property bool isActive: preset.id === ThemeService.currentTheme
-    
+    readonly property bool isFavorite: (Config.options?.appearance?.favoriteThemes ?? []).includes(preset.id)
+
     signal clicked()
 
     // Helper to safely get color from preset
@@ -18,36 +19,47 @@ Item {
         return preset.colors[key] ?? fallback
     }
 
-    implicitHeight: 40
+    function toggleFavorite() {
+        let favs = Config.options?.appearance?.favoriteThemes ?? []
+        if (root.isFavorite) {
+            favs = favs.filter(t => t !== preset.id)
+        } else {
+            favs = [...favs, preset.id]
+        }
+        Config.setNestedValue("appearance.favoriteThemes", favs)
+    }
+
+    implicitHeight: 36
 
     // Card background
     Rectangle {
         id: cardBg
         anchors.fill: parent
         radius: Appearance.rounding.small
-        
-        color: root.isActive 
-            ? ColorUtils.transparentize(Appearance.m3colors.m3primaryContainer, 0.4)
-            : mouseArea.containsMouse 
-                ? Appearance.colors.colLayer2Hover
-                : Appearance.colors.colLayer2
-        
+
+        // Get primary color from THIS preset (not current theme)
+        readonly property color presetPrimary: root.getColor("m3primary", "#6366f1")
+
+        color: cardMouseArea.containsMouse
+            ? Appearance.colors.colLayer2Hover
+            : Appearance.colors.colLayer2
+
         border.width: root.isActive ? 1.5 : 0
-        border.color: Appearance.m3colors.m3primary
+        border.color: cardBg.presetPrimary
 
         Behavior on color { enabled: Appearance.animationsEnabled; ColorAnimation { duration: 100 } }
     }
 
-    // Content
+    // Content row
     RowLayout {
         anchors.fill: parent
-        anchors.leftMargin: 10
-        anchors.rightMargin: 10
-        spacing: 10
+        anchors.leftMargin: 8
+        anchors.rightMargin: 4
+        spacing: 6
 
         // Color swatches - simple overlapping circles
         Row {
-            spacing: -5
+            spacing: -4
 
             Repeater {
                 model: [
@@ -59,52 +71,96 @@ Item {
                 Rectangle {
                     required property var modelData
                     required property int index
-                    
-                    width: 18
-                    height: 18
-                    radius: 9
+
+                    width: 14
+                    height: 14
+                    radius: 7
                     color: root.getColor(modelData.key, modelData.fallback)
-                    border.width: 1.5
+                    border.width: 1
                     border.color: Qt.rgba(0, 0, 0, 0.25)
                     z: 3 - index
                 }
             }
         }
 
-        // Theme name
-        StyledText {
+        // Theme name - clickable area for selecting theme
+        Item {
             Layout.fillWidth: true
-            text: preset.name
-            font.pixelSize: Appearance.font.pixelSize.small
-            font.weight: root.isActive ? Font.DemiBold : Font.Normal
-            color: root.isActive 
-                ? Appearance.m3colors.m3onPrimaryContainer 
-                : Appearance.colors.colOnLayer2
-            elide: Text.ElideRight
+            Layout.fillHeight: true
+
+            StyledText {
+                anchors.verticalCenter: parent.verticalCenter
+                anchors.left: parent.left
+                anchors.right: parent.right
+                text: preset.name
+                font.pixelSize: Appearance.font.pixelSize.smaller
+                font.weight: root.isActive ? Font.DemiBold : Font.Normal
+                color: root.isActive
+                    ? cardBg.presetPrimary
+                    : Appearance.colors.colOnLayer2
+                elide: Text.ElideRight
+            }
+
+            MouseArea {
+                id: cardMouseArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.clicked()
+            }
+        }
+
+        // Favorite button - separate clickable area
+        Rectangle {
+            id: starButton
+            width: 28
+            height: 28
+            radius: 14
+            color: starMouseArea.containsMouse
+                ? (root.isFavorite ? Appearance.colors.colLayer1Hover : Appearance.m3colors.m3tertiaryContainer)
+                : "transparent"
+            visible: root.isFavorite || cardMouseArea.containsMouse || starMouseArea.containsMouse
+
+            Behavior on color { ColorAnimation { duration: 100 } }
+
+            MaterialSymbol {
+                anchors.centerIn: parent
+                text: root.isFavorite ? "star" : "star_outline"
+                iconSize: 16
+                color: root.isFavorite
+                    ? Appearance.m3colors.m3tertiary
+                    : starMouseArea.containsMouse
+                        ? Appearance.m3colors.m3onTertiaryContainer
+                        : Appearance.colors.colSubtext
+            }
+
+            MouseArea {
+                id: starMouseArea
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.toggleFavorite()
+            }
+
+            StyledToolTip {
+                text: root.isFavorite ? Translation.tr("Remove from favorites") : Translation.tr("Add to favorites")
+                visible: starMouseArea.containsMouse
+            }
         }
 
         // Active check
         MaterialSymbol {
-            visible: root.isActive
+            visible: root.isActive && !starButton.visible
             text: "check"
             iconSize: 16
-            color: Appearance.m3colors.m3primary
+            color: cardBg.presetPrimary
         }
     }
 
-    // Interaction
-    MouseArea {
-        id: mouseArea
-        anchors.fill: parent
-        hoverEnabled: true
-        cursorShape: Qt.PointingHandCursor
-        onClicked: root.clicked()
-    }
-
-    // Tooltip
+    // Tooltip for theme description
     StyledToolTip {
         text: preset.description ?? ""
-        visible: mouseArea.containsMouse && (preset.description ?? "").length > 0
-        delay: 400
+        visible: cardMouseArea.containsMouse && (preset.description ?? "").length > 0
+        delay: 500
     }
 }
