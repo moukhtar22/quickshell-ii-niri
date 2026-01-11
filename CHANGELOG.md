@@ -5,6 +5,49 @@ All notable changes to iNiR will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.6.0] - 2026-01-11
+
+### Added
+- **User modification detection**: Setup now detects user-modified files and preserves them during updates
+- **Themes UI favorites**: Star your favorite color themes for quick access in settings
+- **Quick Access section**: Combined favorites + recently used themes in compact grid
+- **Temperature sensor support**: Extended hwmon detection for older hardware (k10temp, coretemp, etc.)
+- **Control Panel**: New unified control panel with modular sections
+- **Tiling Overlay**: Visual overlay for tiling operations
+- **Tools tab**: New tools section in settings
+- **GIF wallpaper support**: Native animated GIF wallpapers with performance optimizations
+- **Video wallpaper support**: Video files as wallpapers in wallpaper selector
+- **Calculator widget**: Calculator in sidebar left
+- **System monitor widget**: System stats widget in sidebar
+- **Bar media popup**: Quick media controls popup from bar
+- **YouTube Music overhaul**: New player card, track items, account sync, and library import
+- **FontSyncService**: Automatic font synchronization service
+- **CavaProcess widget**: Reusable cavo visualizer component
+- **Terminal config generator**: Auto-generate terminal color schemes from theme
+
+### Changed
+- **Anime API**: Switched from Jikan/MAL to AniList API for better reliability
+- **Themes UI**: Compact 3-column grid layout with scroll, single-select tag filters
+- **Control Panel**: Modularized into separate section components
+- **Audio service**: Simplified architecture with improved sidebar widgets
+- **Cava visualizers**: Improved with config generator script
+- **Aurora dark mode**: Better contrast and color handling
+- **Session screen**: Added blurred wallpaper background like lock screen
+
+### Fixed
+- **Vertical bar hug mode**: Fixed layout issues with hug corner style
+- **Aurora blur corners**: Fixed missing blur in vertical bar Aurora style
+- **Dock recreation**: Dock now properly recreates when bar position changes
+- **Media popup cava**: Removed problematic cava from bar media popup
+- **Hardcoded colors**: Replaced hex colors with ColorUtils for proper theming
+- **Notification widgets**: Improved notification item and action button styling
+- **Lock surfaces**: Improved backdrop and lock surface rendering
+- **YtMusic crashes**: Fixed config race condition and JSON structure issues
+- **YtMusic sync**: Resolved synchronization issues and improved UI/UX
+- **Bar Aurora corners**: Added opaque background to match bar appearance
+- **Bluetooth null guard**: Added safety check for bluetooth service
+- **Various UI fixes**: Misc improvements across bar, overview, and settings
+
 ## [2.5.0] - 2026-01-03
 
 ### Added
