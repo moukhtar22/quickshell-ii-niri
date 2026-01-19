@@ -24,12 +24,6 @@ Item {
     property bool contextMenuOpen: false
     property bool requestDockShow: previewPopup.show || contextMenuOpen
     
-    // Watch separatePinnedFromRunning option for live updates
-    property bool _separatePinnedFromRunning: Config.options?.dock?.separatePinnedFromRunning ?? true
-    onSeparatePinnedFromRunningChanged: {
-        root.rebuildDockItems()
-    }
-    
     // Signal to close any open context menu before opening a new one
     signal closeAllContextMenus()
 
@@ -40,8 +34,8 @@ Item {
     
     property var dockItems: []
     
-    // Watch for changes to separatePinnedFromRunning
-    property bool separatePinnedFromRunning: Config.options?.dock?.separatePinnedFromRunning ?? true
+    // Direct reactive binding to Config - will automatically trigger when Config changes
+    readonly property bool separatePinnedFromRunning: Config.options?.dock?.separatePinnedFromRunning ?? true
     onSeparatePinnedFromRunningChanged: {
         root.rebuildDockItems()
     }
@@ -65,7 +59,7 @@ Item {
     function rebuildDockItems() {
         const pinnedApps = Config.options?.dock?.pinnedApps ?? [];
         const ignoredRegexes = _getIgnoredRegexes();
-        const separatePinnedFromRunning = root._separatePinnedFromRunning;
+        const separatePinnedFromRunning = root.separatePinnedFromRunning;
 
         // Get all open windows
         const allToplevels = CompositorService.sortedToplevels && CompositorService.sortedToplevels.length

@@ -576,6 +576,7 @@ Singleton {
                 property bool showBackground: true
                 property bool minimizeUnfocused: false // Show dot for unfocused apps
                 property bool enableBlurGlass: true
+                property bool separatePinnedFromRunning: true // Waffle-style: pinned-only apps on left, running on right
                 property list<string> pinnedApps: [ // IDs of pinned entries
                     "org.kde.dolphin", "kitty",]
                 property list<string> ignoredAppRegexes: []
