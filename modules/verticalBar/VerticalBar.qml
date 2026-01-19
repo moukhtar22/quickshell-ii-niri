@@ -74,13 +74,7 @@ Scope {
                     bottom: true
                 }
 
-                // Include in focus grab
-                Component.onCompleted: {
-                    GlobalFocusGrab.addPersistent(barRoot);
-                }
-                Component.onDestruction: {
-                    GlobalFocusGrab.removePersistent(barRoot);
-                }
+                // Focus grab is handled by layer shell (PanelWindow)
 
                 MouseArea  {
                     id: hoverRegion

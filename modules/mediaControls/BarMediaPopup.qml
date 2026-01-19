@@ -22,6 +22,10 @@ Item {
     readonly property real widgetWidth: Appearance.sizes.mediaControlsWidth
     readonly property real widgetHeight: Appearance.sizes.mediaControlsHeight
     property real popupRounding: Appearance.rounding.normal
+    
+    // Cache to prevent flickering when popup is shown
+    property var _playerCache: []
+    property bool _cacheValid: false
 
     property bool hasPlasmaIntegration: false
     Process {
@@ -30,6 +34,25 @@ Item {
         command: ["/usr/bin/bash", "-c", "command -v plasma-browser-integration-host"]
         onExited: (exitCode, exitStatus) => {
             root.hasPlasmaIntegration = (exitCode === 0);
+        }
+    }
+
+    // Update cache when players change
+    onMeaningfulPlayersChanged: {
+        if (root.meaningfulPlayers.length > 0) {
+            root._playerCache = root.meaningfulPlayers;
+            root._cacheValid = true;
+        } else if (root._cacheValid && root._playerCache.length > 0) {
+            // Keep cache for 500ms to prevent flickering
+            cacheInvalidateTimer.restart();
+        }
+    }
+
+    Timer {
+        id: cacheInvalidateTimer
+        interval: 500
+        onTriggered: {
+            root._cacheValid = false;
         }
     }
 
@@ -76,19 +99,19 @@ Item {
 
         Repeater {
             model: ScriptModel {
-                values: root.meaningfulPlayers
+                values: root._cacheValid ? root._playerCache : root.meaningfulPlayers
             }
             delegate: Item {
                 required property MprisPlayer modelData
                 required property int index
                 Layout.fillWidth: true
                 implicitWidth: root.widgetWidth
-                implicitHeight: root.widgetHeight + (isActive && root.meaningfulPlayers.length > 1 ? 4 : 0)
+                implicitHeight: root.widgetHeight + (isActive && (root._cacheValid ? root._playerCache : root.meaningfulPlayers).length > 1 ? 4 : 0)
                 
                 readonly property bool isActive: modelData === MprisController.trackedPlayer
                 
                 Rectangle {
-                    visible: root.meaningfulPlayers.length > 1
+                    visible: (root._cacheValid ? root._playerCache : root.meaningfulPlayers).length > 1
                     anchors.left: parent.left
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
@@ -96,8 +119,8 @@ Item {
                     width: 3
                     radius: 2
                     color: isActive 
-                        ? (Appearance.inirEverywhere ? Appearance.inir.colPrimary : Appearance.colors.colPrimary)
-                        : (Appearance.inirEverywhere ? Appearance.inir.colLayer2 : Appearance.colors.colLayer2)
+                        ? ((Appearance.inirEverywhere && Appearance.inir) ? Appearance.inir.colPrimary : Appearance.colors.colPrimary)
+                        : ((Appearance.inirEverywhere && Appearance.inir) ? Appearance.inir.colLayer2 : Appearance.colors.colLayer2)
                     
                     Behavior on color {
                         enabled: Appearance.animationsEnabled
@@ -107,7 +130,7 @@ Item {
                 
                 PlayerControl {
                     anchors.fill: parent
-                    anchors.leftMargin: root.meaningfulPlayers.length > 1 ? 6 : 0
+                    anchors.leftMargin: (root._cacheValid ? root._playerCache : root.meaningfulPlayers).length > 1 ? 6 : 0
                     player: modelData
                     visualizerPoints: []
                     radius: root.popupRounding
@@ -115,7 +138,7 @@ Item {
                 
                 MouseArea {
                     anchors.fill: parent
-                    visible: !isActive && root.meaningfulPlayers.length > 1
+                    visible: !isActive && (root._cacheValid ? root._playerCache : root.meaningfulPlayers).length > 1
                     onClicked: MprisController.setActivePlayer(modelData)
                     cursorShape: Qt.PointingHandCursor
                     z: -1
@@ -125,7 +148,7 @@ Item {
 
         // No player placeholder
         Item {
-            visible: root.meaningfulPlayers.length === 0
+            visible: (root._cacheValid ? root._playerCache : root.meaningfulPlayers).length === 0
             Layout.fillWidth: true
             implicitWidth: placeholderBackground.implicitWidth + Appearance.sizes.elevationMargin
             implicitHeight: placeholderBackground.implicitHeight + Appearance.sizes.elevationMargin
@@ -137,13 +160,13 @@ Item {
             Rectangle {
                 id: placeholderBackground
                 anchors.centerIn: parent
-                color: Appearance.inirEverywhere ? Appearance.inir.colLayer1
-                : Appearance.auroraEverywhere ? Appearance.aurora.colPopupSurface
+                color: (Appearance.inirEverywhere && Appearance.inir) ? Appearance.inir.colLayer1
+                : (Appearance.auroraEverywhere && Appearance.aurora) ? Appearance.aurora.colPopupSurface
                      : Appearance.colors.colLayer0
-                radius: Appearance.inirEverywhere ? Appearance.inir.roundingNormal : root.popupRounding
-                border.width: Appearance.inirEverywhere || Appearance.auroraEverywhere ? 1 : 0
-                border.color: Appearance.inirEverywhere ? Appearance.inir.colBorder
-                            : Appearance.auroraEverywhere ? Appearance.aurora.colPopupBorder
+                radius: (Appearance.inirEverywhere && Appearance.inir) ? Appearance.inir.roundingNormal : root.popupRounding
+                border.width: (Appearance.inirEverywhere || Appearance.auroraEverywhere) ? 1 : 0
+                border.color: (Appearance.inirEverywhere && Appearance.inir) ? Appearance.inir.colBorder
+                            : (Appearance.auroraEverywhere && Appearance.aurora) ? Appearance.aurora.colPopupBorder
                             : "transparent"
                 property real padding: 20
                 implicitWidth: placeholderLayout.implicitWidth + padding * 2
@@ -156,13 +179,13 @@ Item {
                     StyledText {
                         text: Translation.tr("No active player")
                         font.pixelSize: Appearance.font.pixelSize.large
-                        color: Appearance.inirEverywhere ? Appearance.inir.colText
-                            : Appearance.auroraEverywhere ? Appearance.colors.colOnLayer0
+                        color: (Appearance.inirEverywhere && Appearance.inir) ? Appearance.inir.colText
+                            : (Appearance.auroraEverywhere && Appearance.aurora) ? Appearance.colors.colOnLayer0
                             : Appearance.colors.colOnLayer0
                     }
                     StyledText {
-                        color: Appearance.inirEverywhere ? Appearance.inir.colTextSecondary
-                            : Appearance.auroraEverywhere ? Appearance.aurora.colTextSecondary
+                        color: (Appearance.inirEverywhere && Appearance.inir) ? Appearance.inir.colTextSecondary
+                            : (Appearance.auroraEverywhere && Appearance.aurora) ? Appearance.aurora.colTextSecondary
                             : Appearance.colors.colSubtext
                         text: Translation.tr("Make sure your player has MPRIS support\nor try turning off duplicate player filtering")
                         font.pixelSize: Appearance.font.pixelSize.small

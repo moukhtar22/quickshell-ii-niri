@@ -518,6 +518,10 @@ Singleton {
         // === Dialog Surface (modal dialogs) ===
         readonly property color colDialogSurface: ColorUtils.transparentize(root.colors.colLayer3Base, popupTransparentize * 0.85)
         
+        // Missing properties for BarMediaPopup compatibility
+        readonly property color colPopupBorder: ColorUtils.transparentize(root.colors.colOutline, 0.7)
+        readonly property color colTextSecondary: ColorUtils.transparentize(root.colors.colOnLayer1, 0.3)
+        
         // Legacy alias for backward compatibility
         readonly property real popupSurfaceTransparentize: popupTransparentize
     }
