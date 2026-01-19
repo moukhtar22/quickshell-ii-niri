@@ -4,6 +4,7 @@ import qs.modules.common
 import qs.modules.common.functions
 import Quickshell
 import Quickshell.Io
+import QtQuick
 
 Singleton {
     id: root
@@ -15,14 +16,14 @@ Singleton {
     property string welcomeQmlPath: FileUtils.trimFileProtocol(Quickshell.shellPath("welcome.qml"))
 
     function load() {
-        firstRunFileView.reload()
+        checkFirstRunProc.running = true
     }
 
     function enableNextTime() {
         Quickshell.execDetached(["/usr/bin/rm", "-f", root.firstRunFilePath])
     }
     function disableNextTime() {
-        firstRunFileView.setText(root.firstRunFileContent)
+        Quickshell.execDetached(["/bin/sh", "-c", `echo "${root.firstRunFileContent}" > "${root.firstRunFilePath}"`])
     }
 
     function handleFirstRun(): void {
