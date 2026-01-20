@@ -20,6 +20,52 @@ Singleton {
     property var topAiring: []
     property string currentDay: Qt.formatDate(new Date(), "dddd").toLowerCase()
     
+    // Season selection for Seasonal tab
+    property string selectedSeason: getCurrentSeason()
+    property int selectedYear: new Date().getFullYear()
+    readonly property var seasons: ["WINTER", "SPRING", "SUMMER", "FALL"]
+    
+    function getCurrentSeason(): string {
+        const month = new Date().getMonth()
+        return month < 3 ? "WINTER" : month < 6 ? "SPRING" : month < 9 ? "SUMMER" : "FALL"
+    }
+    
+    function getSeasonDisplayName(season: string): string {
+        const names = { "WINTER": "Winter", "SPRING": "Spring", "SUMMER": "Summer", "FALL": "Fall" }
+        return names[season] ?? season
+    }
+    
+    function nextSeason(): void {
+        const idx = seasons.indexOf(selectedSeason)
+        if (idx === 3) {
+            selectedSeason = seasons[0]
+            selectedYear++
+        } else {
+            selectedSeason = seasons[idx + 1]
+        }
+        invalidateSeasonalCache()
+        fetchSeasonalAnime()
+    }
+    
+    function prevSeason(): void {
+        const idx = seasons.indexOf(selectedSeason)
+        if (idx === 0) {
+            selectedSeason = seasons[3]
+            selectedYear--
+        } else {
+            selectedSeason = seasons[idx - 1]
+        }
+        invalidateSeasonalCache()
+        fetchSeasonalAnime()
+    }
+    
+    function invalidateSeasonalCache(): void {
+        const timestamps = _cacheTimestamps
+        delete timestamps["seasonal"]
+        _cacheTimestamps = timestamps
+        seasonalAnime = []
+    }
+    
     property bool loadingSchedule: false
     property bool loadingSeasonal: false
     property bool loadingTop: false
@@ -168,16 +214,14 @@ Singleton {
     }
     
     function fetchSeasonalAnime() {
-        const cacheKey = "seasonal"
+        const cacheKey = "seasonal_" + selectedSeason + "_" + selectedYear
         if (root._isCacheValid(cacheKey) && root.seasonalAnime.length > 0) return
         
         root.loadingSeasonal = true
         root.lastError = ""
         
-        const now = new Date()
-        const month = now.getMonth()
-        const season = month < 3 ? "WINTER" : month < 6 ? "SPRING" : month < 9 ? "SUMMER" : "FALL"
-        const year = now.getFullYear()
+        const season = selectedSeason
+        const year = selectedYear
         const isAdult = Config.options?.sidebar?.animeSchedule?.showNsfw ?? false
         
         const query = `
@@ -211,7 +255,7 @@ Singleton {
                 return
             }
             root.seasonalAnime = (data.Page?.media ?? []).map(anime => root._normalizeAnime(anime))
-            root._updateCache(cacheKey)
+            root._updateCache("seasonal_" + season + "_" + year)
         })
     }
     
