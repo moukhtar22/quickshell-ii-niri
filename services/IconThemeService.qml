@@ -25,21 +25,61 @@ Singleton {
         if (icon.startsWith("/") || icon.startsWith("file://")) {
             const path = icon.startsWith("file://") ? icon.substring(7) : icon;
 
+            // Check for volatile/non-permanent paths first
+            const volatilePaths = ["/Descargas/", "/Downloads/", "/tmp/", "/var/tmp/", "/home/"];
+            const isVolatile = volatilePaths.some(vp => {
+                if (vp === "/home/") {
+                    // Only consider /home/ volatile if it's inside a download-like folder
+                    return path.includes("/Descargas/") || path.includes("/Downloads/") || 
+                           path.includes("/tmp/") || path.includes("/.local/share/Steam/") === false;
+                }
+                return path.includes(vp);
+            });
+            
+            // Known Electron app patterns - return proper icon name
+            if (path.includes("/Windsurf/") || path.includes("/windsurf/")) {
+                return "visual-studio-code";
+            }
+            if (path.includes("/Code/") || path.includes("/code/") || path.includes("/VSCode/")) {
+                return "visual-studio-code";
+            }
+            if (path.includes("/Cursor/") || path.includes("/cursor/")) {
+                return "visual-studio-code";
+            }
+            if (path.includes("/Zed/") || path.includes("/zed/")) {
+                return "dev.zed.Zed";
+            }
+            if (path.includes("/Discord/") || path.includes("/discord/")) {
+                return "discord";
+            }
+            if (path.includes("/Slack/") || path.includes("/slack/")) {
+                return "slack";
+            }
+            if (path.includes("/Obsidian/") || path.includes("/obsidian/")) {
+                return "obsidian";
+            }
+            if (path.includes("/Spotify/") || path.includes("/spotify/")) {
+                return "spotify";
+            }
+
             // Try to fix common broken Electron paths
             // Example: .../resources/app/resources/linux/code.png -> .../resources/linux/code.png
             if (path.indexOf("/resources/app/resources/") !== -1) {
-                // Return the potential fixed path. If it works, great. If not, it will fallback in DockAppButton
                 return path.replace("/resources/app/resources/", "/resources/");
             }
 
-            // Check for volatile paths
-            if (icon.indexOf("/Descargas/") !== -1 || icon.indexOf("/Downloads/") !== -1 || icon.indexOf("/tmp/") !== -1) {
+            // For other volatile paths, extract base name
+            if (isVolatile || path.includes("/resources/")) {
                 const fileName = path.split("/").pop();
                 let baseName = fileName;
                 if (baseName.includes(".")) {
                     baseName = baseName.split(".").slice(0, -1).join(".");
                 }
-                return baseName; // Return "code" instead of full path
+                // Try common icon name mappings
+                if (baseName === "code") return "visual-studio-code";
+                if (baseName === "discord") return "discord";
+                if (baseName === "slack") return "slack";
+                return baseName || appId || "application-x-executable";
             }
         }
         
