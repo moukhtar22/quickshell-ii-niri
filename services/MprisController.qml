@@ -15,14 +15,20 @@ Singleton {
 	property list<MprisPlayer> players: Mpris.players.values.filter(player => isRealPlayer(player));
 	property MprisPlayer trackedPlayer: null;
 	
+	// Reactive counter that forces re-evaluation when any player's state changes
+	property int _playbackStateVersion: 0
+	
 	// Prioritize playing players over paused ones
-	// If trackedPlayer is playing, use it; otherwise find any playing player; fallback to trackedPlayer or first
+	// Uses _playbackStateVersion to force re-evaluation on state changes
 	property MprisPlayer activePlayer: {
+		// Touch version to create dependency
+		const _ = _playbackStateVersion;
 		// If tracked player is actively playing, use it
 		if (trackedPlayer?.isPlaying) return trackedPlayer;
-		// Otherwise, find any player that IS playing
-		const playingPlayer = players.find(p => p.isPlaying);
-		if (playingPlayer) return playingPlayer;
+		// Otherwise, find any player that IS playing (iterate to ensure reactivity)
+		for (let i = 0; i < players.length; i++) {
+			if (players[i]?.isPlaying) return players[i];
+		}
 		// Fallback to tracked or first player (even if paused)
 		return trackedPlayer ?? players[0] ?? null;
 	}
@@ -59,10 +65,17 @@ Singleton {
 	function isRealPlayer(player) {
 		if (!Config.options?.media?.filterDuplicatePlayers) return true;
 		const name = player.dbusName ?? "";
-		return !(hasPlasmaIntegration && name.startsWith('org.mpris.MediaPlayer2.firefox')) &&
-			   !(hasPlasmaIntegration && name.startsWith('org.mpris.MediaPlayer2.chromium')) &&
-			   !name.startsWith('org.mpris.MediaPlayer2.playerctld') &&
-			   !(name.endsWith('.mpd') && !name.endsWith('MediaPlayer2.mpd'));
+		// Filter browser players when plasma-browser-integration is present
+		if (hasPlasmaIntegration && name.startsWith('org.mpris.MediaPlayer2.firefox')) return false;
+		if (hasPlasmaIntegration && name.startsWith('org.mpris.MediaPlayer2.chromium')) return false;
+		if (hasPlasmaIntegration && name.startsWith('org.mpris.MediaPlayer2.chrome')) return false;
+		// Filter playerctld (just a proxy)
+		if (name.startsWith('org.mpris.MediaPlayer2.playerctld')) return false;
+		// Filter plasma-browser-integration itself when we already have browser players
+		if (name.includes('plasma-browser-integration')) return false;
+		// Filter duplicate MPD instances
+		if (name.endsWith('.mpd') && !name.endsWith('MediaPlayer2.mpd')) return false;
+		return true;
 	}
 	
 	signal trackChanged(reverse: bool);
@@ -111,6 +124,9 @@ Singleton {
 			}
 
 			function onPlaybackStateChanged() {
+				// Increment version to force activePlayer re-evaluation
+				root._playbackStateVersion++;
+				// Update tracked player if this one started playing
 				if (modelData.isPlaying && root.trackedPlayer !== modelData) {
 					root.trackedPlayer = modelData;
 				}
