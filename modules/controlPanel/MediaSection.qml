@@ -20,7 +20,8 @@ Item {
     visible: hasPlayer
     
     readonly property MprisPlayer player: MprisController.activePlayer
-    readonly property bool hasPlayer: player && player.trackTitle
+    readonly property bool isYtMusicActive: MprisController.isYtMusicActive
+    readonly property bool hasPlayer: (player && player.trackTitle) || (isYtMusicActive && YtMusic.currentVideoId)
     readonly property bool inirEverywhere: Appearance.inirEverywhere
     readonly property bool auroraEverywhere: Appearance.auroraEverywhere
 
@@ -351,7 +352,7 @@ Item {
                         colBackground: "transparent"
                         colBackgroundHover: root.inirEverywhere ? Appearance.inir.colLayer2Hover : ColorUtils.transparentize(root.blendedColors?.colLayer1 ?? Appearance.colors.colLayer1, 0.5)
                         colRipple: root.inirEverywhere ? Appearance.inir.colLayer2Active : (root.blendedColors?.colLayer1Active ?? Appearance.colors.colLayer1Active)
-                        onClicked: root.player?.previous()
+                        onClicked: MprisController.previous()
 
                         contentItem: Item {
                             MaterialSymbol {
@@ -382,7 +383,7 @@ Item {
                             : root.auroraEverywhere
                                 ? (root.blendedColors?.colLayer1Active ?? Appearance.colors.colLayer1Active)
                                 : Appearance.colors.colLayer1Active
-                        onClicked: root.player?.togglePlaying()
+                        onClicked: MprisController.togglePlaying()
 
                         contentItem: Item {
                             MaterialSymbol {
@@ -408,7 +409,7 @@ Item {
                         colBackground: "transparent"
                         colBackgroundHover: root.inirEverywhere ? Appearance.inir.colLayer2Hover : ColorUtils.transparentize(root.blendedColors?.colLayer1 ?? Appearance.colors.colLayer1, 0.5)
                         colRipple: root.inirEverywhere ? Appearance.inir.colLayer2Active : (root.blendedColors?.colLayer1Active ?? Appearance.colors.colLayer1Active)
-                        onClicked: root.player?.next()
+                        onClicked: MprisController.next()
 
                         contentItem: Item {
                             MaterialSymbol {

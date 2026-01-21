@@ -45,19 +45,67 @@ Item {
         }
     }
 
+    function _isYtMusicMpv(player) {
+        if (!player) return false;
+        if (YtMusic.mpvPlayer && player === YtMusic.mpvPlayer) return true;
+        const id = (player.identity ?? "").toLowerCase();
+        const entry = (player.desktopEntry ?? "").toLowerCase();
+        if (id !== "mpv" && !id.includes("mpv") && entry !== "mpv" && !entry.includes("mpv")) return false;
+        const trackUrl = player.metadata?.["xesam:url"] ?? "";
+        return trackUrl.includes("youtube.com") || trackUrl.includes("youtu.be");
+    }
+
     function filterDuplicatePlayers(players) {
         let filtered = [];
         let used = new Set();
+        
+        // First pass: identify and exclude YtMusic's mpv player if YtMusic is showing its own UI
+        // We keep only one representation of YtMusic content
+        let ytMusicMpvIdx = -1;
+        if (MprisController.isYtMusicActive && YtMusic.currentVideoId) {
+            for (let i = 0; i < players.length; ++i) {
+                if (_isYtMusicMpv(players[i])) {
+                    ytMusicMpvIdx = i;
+                    break;
+                }
+            }
+        }
+        
         for (let i = 0; i < players.length; ++i) {
             if (used.has(i)) continue;
+            
+            // Skip YtMusic's mpv if we already have YtMusic active (sidebar handles it)
+            // But only if there are OTHER players - if mpv is the only one, show it
+            if (i === ytMusicMpvIdx && players.length > 1) {
+                used.add(i);
+                continue;
+            }
+            
             let p1 = players[i];
             let group = [i];
+            
             for (let j = i + 1; j < players.length; ++j) {
+                if (used.has(j)) continue;
                 let p2 = players[j];
-                if (p1.trackTitle && p2.trackTitle && (p1.trackTitle.includes(p2.trackTitle) || p2.trackTitle.includes(p1.trackTitle)) || (Math.abs(p1.position - p2.position) <= 2 && Math.abs(p1.length - p2.length) <= 2)) {
+                
+                // Check if both are YtMusic mpv players (different instances)
+                const bothYtMusic = _isYtMusicMpv(p1) && _isYtMusicMpv(p2);
+                
+                // Check title similarity
+                const titleMatch = p1.trackTitle && p2.trackTitle && 
+                    (p1.trackTitle.includes(p2.trackTitle) || p2.trackTitle.includes(p1.trackTitle));
+                
+                // Check position/length similarity (for same content on different players)
+                const posMatch = Math.abs(p1.position - p2.position) <= 3 && 
+                                 Math.abs(p1.length - p2.length) <= 3 &&
+                                 p1.length > 0 && p2.length > 0;
+                
+                if (bothYtMusic || titleMatch || posMatch) {
                     group.push(j);
                 }
             }
+            
+            // Choose the player with cover art, or the first one
             let chosenIdx = group.find(idx => players[idx].trackArtUrl && players[idx].trackArtUrl.length > 0);
             if (chosenIdx === undefined) chosenIdx = group[0];
             filtered.push(players[chosenIdx]);
