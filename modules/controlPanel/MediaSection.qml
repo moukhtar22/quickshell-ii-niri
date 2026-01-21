@@ -25,12 +25,11 @@ Item {
     readonly property bool inirEverywhere: Appearance.inirEverywhere
     readonly property bool auroraEverywhere: Appearance.auroraEverywhere
 
-    // Use YtMusic data when active, otherwise use player data
     readonly property string effectiveArtUrl: isYtMusicActive && YtMusic.currentThumbnail ? YtMusic.currentThumbnail : (player?.trackArtUrl ?? "")
     readonly property string effectiveTitle: isYtMusicActive && YtMusic.currentTitle ? YtMusic.currentTitle : (player?.trackTitle ?? "")
     readonly property string effectiveArtist: isYtMusicActive && YtMusic.currentArtist ? YtMusic.currentArtist : (player?.trackArtist ?? "")
     readonly property bool effectiveIsPlaying: isYtMusicActive ? YtMusic.isPlaying : (player?.isPlaying ?? false)
-    
+
     property string artDownloadLocation: Directories.coverArt
     property string artFileName: effectiveArtUrl ? Qt.md5(effectiveArtUrl) : ""
     property string artFilePath: artFileName ? `${artDownloadLocation}/${artFileName}` : ""
@@ -82,8 +81,7 @@ Item {
             }
         }
     }
-    
-    // Update when YtMusic thumbnail changes
+
     Connections {
         target: YtMusic
         function onCurrentThumbnailChanged() {
@@ -103,7 +101,7 @@ Item {
                 root._downloadRetryCount = 0
             } else {
                 root.downloaded = false
-                coverArtDownloader.targetFile = root.effectiveArtUrl
+                coverArtDownloader.targetFile = root.effectiveArtUrl ?? ""
                 coverArtDownloader.artFilePath = root.artFilePath
                 coverArtDownloader.running = true
             }
@@ -280,8 +278,6 @@ Item {
             // Info & controls
             ColumnLayout {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
-                spacing: 4
 
                 StyledText {
                     Layout.fillWidth: true
@@ -290,23 +286,12 @@ Item {
                     font.weight: Font.Medium
                     color: root.inirEverywhere ? root.jiraColText : (root.blendedColors?.colOnLayer0 ?? Appearance.colors.colOnLayer0)
                     elide: Text.ElideRight
-                    animateChange: true
-                    animationDistanceX: 6
                 }
 
                 StyledText {
                     Layout.fillWidth: true
                     text: root.effectiveArtist || ""
                     font.pixelSize: Appearance.font.pixelSize.smaller
-                    color: root.inirEverywhere ? root.jiraColTextSecondary : (root.blendedColors?.colSubtext ?? Appearance.colors.colSubtext)
-                    elide: Text.ElideRight
-                    visible: text !== ""
-                }
-
-                StyledText {
-                    Layout.fillWidth: true
-                    text: root.player?.trackAlbum || ""
-                    font.pixelSize: Appearance.font.pixelSize.smallest
                     color: root.inirEverywhere ? root.jiraColTextSecondary : (root.blendedColors?.colSubtext ?? Appearance.colors.colSubtext)
                     elide: Text.ElideRight
                     visible: text !== ""

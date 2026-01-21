@@ -23,78 +23,23 @@ AbstractBackgroundWidget {
     readonly property real widgetHeight: Appearance.sizes.mediaControlsHeight
     property real popupRounding: Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut + 1
 
-    readonly property var realPlayers: Mpris.players.values.filter(player => isRealPlayer(player))
-    readonly property var meaningfulPlayers: filterDuplicatePlayers(realPlayers)
+    // Use MprisController.displayPlayers - centralized filtering
+    readonly property var meaningfulPlayers: MprisController.displayPlayers
 
     implicitWidth: widgetWidth
     implicitHeight: playerColumnLayout.implicitHeight
 
-    property bool hasPlasmaIntegration: false
+    readonly property bool visualizerActive: (Config.options?.background?.widgets?.mediaControls?.enable ?? false)
+        && (root.meaningfulPlayers?.length ?? 0) > 0
 
-    Process {
-        id: plasmaIntegrationAvailabilityCheckProc
-        running: true
-        command: ["which", "plasma-browser-integration-host"]
-        onExited: (exitCode, exitStatus) => {
-            root.hasPlasmaIntegration = (exitCode === 0);
-        }
+    CavaProcess {
+        id: cavaProcess
+        active: root.visualizerActive
     }
 
-    function isRealPlayer(player) {
-        if (!(Config.options?.media?.filterDuplicatePlayers ?? true)) {
-            return true;
-        }
-        return (
-            !(hasPlasmaIntegration && player.dbusName.startsWith('org.mpris.MediaPlayer2.firefox')) && !(hasPlasmaIntegration && player.dbusName.startsWith('org.mpris.MediaPlayer2.chromium')) &&
-            !player.dbusName?.startsWith('org.mpris.MediaPlayer2.playerctld') &&
-            !(player.dbusName?.endsWith('.mpd') && !player.dbusName.endsWith('MediaPlayer2.mpd')));
-    }
+    property list<real> visualizerPoints: cavaProcess.points
 
-    function filterDuplicatePlayers(players) {
-        let filtered = [];
-        let used = new Set();
-
-        for (let i = 0; i < players.length; ++i) {
-            if (used.has(i))
-                continue;
-            let p1 = players[i];
-            let group = [i];
-
-            for (let j = i + 1; j < players.length; ++j) {
-                let p2 = players[j];
-                if (p1.trackTitle && p2.trackTitle && (p1.trackTitle.includes(p2.trackTitle) || p2.trackTitle.includes(p1.trackTitle)) || (p1.position - p2.position <= 2 && p1.length - p2.length <= 2)) {
-                    group.push(j);
-                }
-            }
-
-            let chosenIdx = group.find(idx => players[idx].trackArtUrl && players[idx].trackArtUrl.length > 0);
-            if (chosenIdx === undefined)
-                chosenIdx = group[0];
-
-            filtered.push(players[chosenIdx]);
-            group.forEach(idx => used.add(idx));
-        }
-        return filtered;
-    }
-
-    property list<real> visualizerPoints: []
-
-    Process {
-        id: cavaProc
-        running: Config.options?.background?.widgets?.mediaControls?.enable ?? false
-        onRunningChanged: {
-            if (!cavaProc.running) {
-                root.visualizerPoints = [];
-            }
-        }
-        command: ["cava", "-p", `${FileUtils.trimFileProtocol(Directories.scriptPath)}/cava/raw_output_config.txt`]
-        stdout: SplitParser {
-            onRead: data => {
-                let points = data.split(";").map(p => parseFloat(p.trim())).filter(p => !isNaN(p));
-                root.visualizerPoints = points;
-            }
-        }
-    }
+    readonly property point widgetScreenPos: root.mapToItem(null, 0, 0)
 
     ColumnLayout {
         id: playerColumnLayout
@@ -112,6 +57,8 @@ AbstractBackgroundWidget {
                 implicitWidth: root.widgetWidth
                 implicitHeight: root.widgetHeight
                 radius: root.popupRounding
+                screenX: root.widgetScreenPos.x
+                screenY: root.widgetScreenPos.y
             }
         }
 

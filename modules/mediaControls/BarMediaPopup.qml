@@ -16,105 +16,36 @@ Item {
     signal closeRequested()
 
     readonly property MprisPlayer activePlayer: MprisController.activePlayer
-    // Use MprisController.players instead of duplicating filter logic
-    readonly property var meaningfulPlayers: filterDuplicatePlayers(MprisController.players)
+    // Use MprisController.displayPlayers - centralized filtering
+    readonly property var meaningfulPlayers: MprisController.displayPlayers
     readonly property real widgetWidth: Appearance.sizes.mediaControlsWidth
     readonly property real widgetHeight: Appearance.sizes.mediaControlsHeight
     property real popupRounding: Appearance.rounding.normal
     
-    // Cache to prevent flickering when popup is shown
+    // Cache to prevent flickering during track transitions
     property var _playerCache: []
     property bool _cacheValid: false
 
-    // Update cache when players change
     onMeaningfulPlayersChanged: {
-        if (root.meaningfulPlayers.length > 0) {
-            root._playerCache = root.meaningfulPlayers;
+        const count = root.meaningfulPlayers?.length ?? 0
+        if (count > 0) {
+            root._playerCache = [...root.meaningfulPlayers];
             root._cacheValid = true;
+            cacheInvalidateTimer.stop();
         } else if (root._cacheValid && root._playerCache.length > 0) {
-            // Keep cache for 500ms to prevent flickering
+            // Keep cache during transitions
             cacheInvalidateTimer.restart();
         }
     }
 
     Timer {
         id: cacheInvalidateTimer
-        interval: 500
+        interval: 800  // Longer debounce for track transitions
         onTriggered: {
-            root._cacheValid = false;
-        }
-    }
-
-    function _isYtMusicMpv(player) {
-        if (!player) return false;
-        if (YtMusic.mpvPlayer && player === YtMusic.mpvPlayer) return true;
-        const id = (player.identity ?? "").toLowerCase();
-        const entry = (player.desktopEntry ?? "").toLowerCase();
-        if (id !== "mpv" && !id.includes("mpv") && entry !== "mpv" && !entry.includes("mpv")) return false;
-        const trackUrl = player.metadata?.["xesam:url"] ?? "";
-        return trackUrl.includes("youtube.com") || trackUrl.includes("youtu.be");
-    }
-
-    function filterDuplicatePlayers(players) {
-        // When YtMusic is active and has content, filter out ALL YtMusic mpv players
-        // The sidebar YtMusic widget handles display, we don't need duplicates in popup
-        const ytMusicActive = MprisController.isYtMusicActive && YtMusic.currentVideoId;
-        
-        // First: collect non-YtMusic players
-        let nonYtMusicPlayers = [];
-        let ytMusicPlayers = [];
-        
-        for (let i = 0; i < players.length; ++i) {
-            if (_isYtMusicMpv(players[i])) {
-                ytMusicPlayers.push(players[i]);
-            } else {
-                nonYtMusicPlayers.push(players[i]);
+            if ((root.meaningfulPlayers?.length ?? 0) === 0) {
+                root._cacheValid = false;
             }
         }
-        
-        // If YtMusic is active and we have other players, skip all YtMusic mpv players
-        // If YtMusic is the ONLY player, show one instance
-        let playersToFilter = nonYtMusicPlayers;
-        if (ytMusicPlayers.length > 0 && nonYtMusicPlayers.length === 0) {
-            // YtMusic is the only source - show just one
-            playersToFilter = [ytMusicPlayers[0]];
-        }
-        
-        // Now filter remaining duplicates by title/position
-        let filtered = [];
-        let used = new Set();
-        
-        for (let i = 0; i < playersToFilter.length; ++i) {
-            if (used.has(i)) continue;
-            
-            let p1 = playersToFilter[i];
-            let group = [i];
-            
-            for (let j = i + 1; j < playersToFilter.length; ++j) {
-                if (used.has(j)) continue;
-                let p2 = playersToFilter[j];
-                
-                // Check title similarity
-                const titleMatch = p1.trackTitle && p2.trackTitle && 
-                    (p1.trackTitle.includes(p2.trackTitle) || p2.trackTitle.includes(p1.trackTitle));
-                
-                // Check position/length similarity (for same content on different players)
-                const posMatch = Math.abs(p1.position - p2.position) <= 3 && 
-                                 Math.abs(p1.length - p2.length) <= 3 &&
-                                 p1.length > 0 && p2.length > 0;
-                
-                if (titleMatch || posMatch) {
-                    group.push(j);
-                }
-            }
-            
-            // Choose the player with cover art, or the first one
-            let chosenIdx = group.find(idx => playersToFilter[idx].trackArtUrl && playersToFilter[idx].trackArtUrl.length > 0);
-            if (chosenIdx === undefined) chosenIdx = group[0];
-            filtered.push(playersToFilter[chosenIdx]);
-            group.forEach(idx => used.add(idx));
-        }
-        return filtered;
     }
 
     implicitWidth: widgetWidth
@@ -127,19 +58,19 @@ Item {
 
         Repeater {
             model: ScriptModel {
-                values: root._cacheValid ? root._playerCache : root.meaningfulPlayers
+                values: root._cacheValid ? root._playerCache : (root.meaningfulPlayers ?? [])
             }
             delegate: Item {
                 required property MprisPlayer modelData
                 required property int index
                 Layout.fillWidth: true
                 implicitWidth: root.widgetWidth
-                implicitHeight: root.widgetHeight + (isActive && (root._cacheValid ? root._playerCache : root.meaningfulPlayers).length > 1 ? 4 : 0)
+                implicitHeight: root.widgetHeight + (isActive && (root._cacheValid ? root._playerCache : (root.meaningfulPlayers ?? [])).length > 1 ? 4 : 0)
                 
                 readonly property bool isActive: modelData === MprisController.trackedPlayer
                 
                 Rectangle {
-                    visible: (root._cacheValid ? root._playerCache : root.meaningfulPlayers).length > 1
+                    visible: (root._cacheValid ? root._playerCache : (root.meaningfulPlayers ?? [])).length > 1
                     anchors.left: parent.left
                     anchors.top: parent.top
                     anchors.bottom: parent.bottom
@@ -158,7 +89,7 @@ Item {
                 
                 PlayerControl {
                     anchors.fill: parent
-                    anchors.leftMargin: (root._cacheValid ? root._playerCache : root.meaningfulPlayers).length > 1 ? 6 : 0
+                    anchors.leftMargin: (root._cacheValid ? root._playerCache : (root.meaningfulPlayers ?? [])).length > 1 ? 6 : 0
                     player: modelData
                     visualizerPoints: []
                     radius: root.popupRounding
@@ -166,7 +97,7 @@ Item {
                 
                 MouseArea {
                     anchors.fill: parent
-                    visible: !isActive && (root._cacheValid ? root._playerCache : root.meaningfulPlayers).length > 1
+                    visible: !isActive && (root._cacheValid ? root._playerCache : (root.meaningfulPlayers ?? [])).length > 1
                     onClicked: MprisController.setActivePlayer(modelData)
                     cursorShape: Qt.PointingHandCursor
                     z: -1
@@ -178,7 +109,7 @@ Item {
         Item {
             id: placeholderItem
             // Never show placeholder while cache is valid (during transitions)
-            visible: !root._cacheValid && root.meaningfulPlayers.length === 0 && MprisController.players.length === 0
+            visible: !root._cacheValid && (root.meaningfulPlayers?.length ?? 0) === 0 && (Mpris.players.values?.length ?? 0) === 0
             Layout.fillWidth: true
             implicitWidth: placeholderBackground.implicitWidth + Appearance.sizes.elevationMargin
             implicitHeight: placeholderBackground.implicitHeight + Appearance.sizes.elevationMargin

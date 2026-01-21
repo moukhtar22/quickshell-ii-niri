@@ -12,11 +12,30 @@ import qs.modules.common
 Singleton {
 	id: root;
 	
-	property list<MprisPlayer> players: Mpris.players.values.filter(player => isRealPlayer(player));
+	// Raw filtered players - updated imperatively to avoid constant re-evaluation
+	property list<MprisPlayer> players: []
+	
+	// Rebuild player list - called only on structural changes
+	function _rebuildPlayerList(): void {
+		let newList = [];
+		for (const player of Mpris.players.values) {
+			if (isRealPlayer(player)) {
+				newList.push(player);
+			}
+		}
+		players = newList;
+	}
+	
+	// Display players with YtMusic duplicate filtering - USE THIS IN UI WIDGETS
+	readonly property var displayPlayers: _filterYtMusicDuplicates(players)
+	
 	property MprisPlayer trackedPlayer: null;
 	
 	// Reactive counter that forces re-evaluation when any player's state changes
 	property int _playbackStateVersion: 0
+	
+	// Grace period tracking - keeps players visible during track transitions
+	property var _playerGrace: ({})  // dbusName -> timestamp
 	
 	// Prioritize playing players over paused ones
 	// Uses _playbackStateVersion to force re-evaluation on state changes
@@ -62,37 +81,119 @@ Singleton {
 		}
 	}
 	
+	// Check if player is in grace period (recently had valid metadata)
+	function _isInGracePeriod(player): bool {
+		const name = player?.dbusName ?? "";
+		if (!name) return false;
+		const graceTime = _playerGrace[name];
+		if (!graceTime) return false;
+		return (Date.now() - graceTime) < 2000; // 2 second grace period
+	}
+	
+	// Update grace period for a player with valid metadata
+	function _updateGrace(player): void {
+		const name = player?.dbusName ?? "";
+		if (!name) return;
+		if (player.trackTitle || player.isPlaying) {
+			let nextGrace = Object.assign({}, _playerGrace);
+			nextGrace[name] = Date.now();
+			_playerGrace = nextGrace;
+		}
+	}
+	
+	// Cache for mpv instance check to avoid repeated iteration
+	property var _mpvInstanceCache: ({ hasMpvInstance: false, hasMpvBase: false })
+	
+	Connections {
+		target: Config
+		function onConfigChanged() {
+			root._updateMpvCache();
+			root._rebuildPlayerList();
+		}
+	}
+	
+	onHasPlasmaIntegrationChanged: {
+		root._updateMpvCache();
+		root._rebuildPlayerList();
+	}
+	
+	Connections {
+		target: YtMusic
+		function onMpvPlayerChanged() {
+			root._updateMpvCache();
+			root._rebuildPlayerList();
+		}
+		function onCurrentVideoIdChanged() {
+			root._rebuildPlayerList();
+		}
+		function onCurrentTitleChanged() {
+			root._rebuildPlayerList();
+		}
+	}
+	
+	function _updateMpvCache(): void {
+		let hasMpvInstance = false;
+		let hasMpvBase = false;
+		for (const p of Mpris.players.values) {
+			const name = p?.dbusName ?? "";
+			if (name.startsWith("org.mpris.MediaPlayer2.mpv.instance")) hasMpvInstance = true;
+			if (name === "org.mpris.MediaPlayer2.mpv") hasMpvBase = true;
+		}
+		_mpvInstanceCache = { hasMpvInstance, hasMpvBase };
+	}
+
 	function isRealPlayer(player) {
 		if (!Config.options?.media?.filterDuplicatePlayers) return true;
-		const name = player.dbusName ?? "";
-		// Filter playerctld (just a proxy, not the actual player)
+		const name = player?.dbusName ?? "";
+		if (!name) return false;
+		
+		// mpv handling - prefer YtMusic.mpvPlayer when available
+		if (name === "org.mpris.MediaPlayer2.mpv" || name.startsWith("org.mpris.MediaPlayer2.mpv.instance")) {
+			if (YtMusic.mpvPlayer) return player === YtMusic.mpvPlayer;
+			// Use cached values instead of iterating
+			if (name === "org.mpris.MediaPlayer2.mpv" && _mpvInstanceCache.hasMpvInstance) return false;
+			// Drop ghost mpv.instance entries when base mpv exists
+			if (name.startsWith("org.mpris.MediaPlayer2.mpv.instance")) {
+				const hasAnyMeta = !!(player.trackTitle || player.trackArtist || (player.metadata?.["xesam:url"] ?? ""));
+				if (_mpvInstanceCache.hasMpvBase && !player.isPlaying && !hasAnyMeta) return false;
+			}
+		}
+		
+		// Filter playerctld proxy
 		if (name.startsWith('org.mpris.MediaPlayer2.playerctld')) return false;
 		
-		// Handle plasma-browser-integration (KDE Plasma users)
-		// When plasma-browser-integration is present, it acts as a proxy for browser media.
-		// We should use EITHER the browser player OR plasma-browser-integration, not both.
-		// Prefer plasma-browser-integration as it has better metadata.
+		// Handle plasma-browser-integration (KDE Plasma)
 		if (hasPlasmaIntegration) {
-			// Filter raw browser players - plasma-browser-integration will handle them
 			if (name.startsWith('org.mpris.MediaPlayer2.firefox')) return false;
 			if (name.startsWith('org.mpris.MediaPlayer2.chromium')) return false;
 			if (name.startsWith('org.mpris.MediaPlayer2.chrome')) return false;
-			// Keep plasma-browser-integration - it's the actual player proxy we want
 		}
+		
 		// Filter duplicate MPD instances
 		if (name.endsWith('.mpd') && !name.endsWith('MediaPlayer2.mpd')) return false;
-		// NOTE: Do NOT filter YtMusic's mpv player here!
-		// It needs to be in the players list for MPRIS control to work.
-		// Duplicate filtering happens in UI components (BarMediaPopup, etc.)
-		// Filter media without title (likely GIFs or short videos)
-		// But keep players that are actively playing (track may be changing)
+		
+		// Track transition handling - keep player visible during metadata changes
 		const isPlaying = player.playbackState === MprisPlaybackState.Playing;
-		if (!player.trackTitle || player.trackTitle.length === 0) {
-			// Keep if playing (track transition) or if it's a known media player
-			if (!isPlaying) return false;
+		const hasTitle = player.trackTitle && player.trackTitle.length > 0;
+		
+		if (!hasTitle) {
+			// Keep if playing (track loading)
+			if (isPlaying) {
+				_updateGrace(player);
+				return true;
+			}
+			// Keep if in grace period (recently had valid metadata)
+			if (_isInGracePeriod(player)) return true;
+			// Otherwise filter out
+			return false;
 		}
+		
+		// Update grace period for valid players
+		_updateGrace(player);
+		
 		// Filter very short media (< 5 seconds) - likely GIFs
 		if (player.length > 0 && player.length < 5) return false;
+		
 		return true;
 	}
 	
@@ -107,9 +208,94 @@ Singleton {
 		if (YtMusic.mpvPlayer && player === YtMusic.mpvPlayer) return true;
 		const id = (player.identity ?? "").toLowerCase();
 		const entry = (player.desktopEntry ?? "").toLowerCase();
-		if (id !== "mpv" && !id.includes("mpv") && entry !== "mpv" && !entry.includes("mpv")) return false;
+		const isMpv = (id === "mpv" || id.includes("mpv") || entry === "mpv" || entry.includes("mpv"));
+		if (!isMpv) return false;
+		const trackUrl = player.metadata?.["xesam:url"] ?? "";
+		if (trackUrl.includes("youtube.com") || trackUrl.includes("youtu.be")) return true;
+		// Fallback: match by title when YtMusic is active
+		if (YtMusic.currentVideoId || YtMusic.currentTitle) {
+			const ytTitle = _normTitle(YtMusic.currentTitle);
+			const pTitle = _normTitle(player.trackTitle);
+			if (ytTitle && pTitle && (pTitle.includes(ytTitle) || ytTitle.includes(pTitle))) return true;
+		}
+		return false;
+	}
+	
+	function _normTitle(s): string {
+		return (s ?? "").toLowerCase().replace(/[\t\r\n|•·]+/g, " ").replace(/\s+/g, " ").trim();
+	}
+	
+	// Check if player is related to YtMusic (for duplicate filtering)
+	function _isYtMusicRelated(player): bool {
+		if (!player) return false;
+		if (_isYtMusicMpv(player)) return true;
+		// Also check browser players showing YouTube content when YtMusic is active
+		if (!YtMusic.currentVideoId && !YtMusic.currentTitle) return false;
 		const trackUrl = player.metadata?.["xesam:url"] ?? "";
 		return trackUrl.includes("youtube.com") || trackUrl.includes("youtu.be");
+	}
+	
+	// Filter YtMusic duplicates - keep only one YtMusic-related player
+	function _filterYtMusicDuplicates(playerList) {
+		if (!playerList || playerList.length === 0) return [];
+		
+		let nonYtMusic = [];
+		let ytMusic = [];
+		
+		for (const p of playerList) {
+			if (_isYtMusicRelated(p)) {
+				ytMusic.push(p);
+			} else {
+				nonYtMusic.push(p);
+			}
+		}
+		
+		// If multiple YtMusic players, keep only the preferred one
+		if (ytMusic.length > 1) {
+			// Prefer YtMusic.mpvPlayer, then first playing, then first with art
+			let chosen = ytMusic.find(p => YtMusic.mpvPlayer && p === YtMusic.mpvPlayer);
+			if (!chosen) chosen = ytMusic.find(p => p.isPlaying);
+			if (!chosen) chosen = ytMusic.find(p => p.trackArtUrl);
+			if (!chosen) chosen = ytMusic[0];
+			ytMusic = [chosen];
+		}
+		
+		// Filter title/position duplicates from non-YtMusic players
+		let filtered = [];
+		let used = new Set();
+		
+		const allPlayers = [...ytMusic, ...nonYtMusic];
+		for (let i = 0; i < allPlayers.length; i++) {
+			if (used.has(i)) continue;
+			const p1 = allPlayers[i];
+			let group = [i];
+			
+			for (let j = i + 1; j < allPlayers.length; j++) {
+				if (used.has(j)) continue;
+				const p2 = allPlayers[j];
+				
+				// Title similarity check
+				const titleMatch = p1.trackTitle && p2.trackTitle && 
+					(p1.trackTitle.includes(p2.trackTitle) || p2.trackTitle.includes(p1.trackTitle));
+				
+				// Position/length similarity (same content, different players)
+				const posMatch = p1.length > 0 && p2.length > 0 &&
+					Math.abs(p1.position - p2.position) <= 3 && 
+					Math.abs(p1.length - p2.length) <= 3;
+				
+				if (titleMatch || posMatch) {
+					group.push(j);
+				}
+			}
+			
+			// Choose player with cover art, or first one
+			let chosenIdx = group.find(idx => allPlayers[idx].trackArtUrl?.length > 0);
+			if (chosenIdx === undefined) chosenIdx = group[0];
+			filtered.push(allPlayers[chosenIdx]);
+			group.forEach(idx => used.add(idx));
+		}
+		
+		return filtered;
 	}
 
 	Instantiator {
@@ -123,6 +309,9 @@ Singleton {
 				if (root.trackedPlayer == null || modelData.isPlaying) {
 					root.trackedPlayer = modelData;
 				}
+				// Rebuild player list when new player is added
+				root._updateMpvCache();
+				root._rebuildPlayerList();
 			}
 			Component.onDestruction: {
 				if (root.trackedPlayer === modelData) {
@@ -139,6 +328,11 @@ Singleton {
 						root.trackedPlayer = Mpris.players.values[0];
 					}
 				}
+				// Rebuild player list when player is removed (deferred to avoid accessing destroyed object)
+				Qt.callLater(() => {
+					root._updateMpvCache();
+					root._rebuildPlayerList();
+				});
 			}
 
 			function onPlaybackStateChanged() {
@@ -148,6 +342,13 @@ Singleton {
 				if (modelData.isPlaying && root.trackedPlayer !== modelData) {
 					root.trackedPlayer = modelData;
 				}
+				// Rebuild on playback state change (affects filtering)
+				root._rebuildPlayerList();
+			}
+			
+			// Rebuild when track title changes (affects isRealPlayer filter)
+			function onTrackTitleChanged() {
+				root._rebuildPlayerList();
 			}
 		}
 	}
@@ -160,7 +361,8 @@ Singleton {
 		}
 
 		function onTrackArtUrlChanged() {
-			if (root.activePlayer.uniqueId == root.activeTrack.uniqueId && root.activePlayer.trackArtUrl != root.activeTrack.artUrl) {
+			if ((root.activePlayer?.uniqueId ?? 0) === (root.activeTrack?.uniqueId ?? 0)
+				&& (root.activePlayer?.trackArtUrl ?? "") !== (root.activeTrack?.artUrl ?? "")) {
 				const r = root.__reverse;
 				root.updateTrack();
 				root.__reverse = r;
@@ -234,11 +436,11 @@ Singleton {
 	}
 
 	function setActivePlayer(player: MprisPlayer): void {
-		const targetPlayer = player ?? Mpris.players[0];
-		console.log(`[Mpris] Active player ${targetPlayer} << ${activePlayer}`)
+		const players = Mpris.players.values
+		const targetPlayer = player ?? players[0] ?? null;
 
 		if (targetPlayer && this.activePlayer) {
-			this.__reverse = Mpris.players.indexOf(targetPlayer) < Mpris.players.indexOf(this.activePlayer);
+			this.__reverse = players.indexOf(targetPlayer) < players.indexOf(this.activePlayer);
 		} else {
 			this.__reverse = false;
 		}

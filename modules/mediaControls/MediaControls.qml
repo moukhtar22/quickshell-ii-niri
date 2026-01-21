@@ -16,35 +16,22 @@ Scope {
     id: root
     property bool visible: false
     readonly property MprisPlayer activePlayer: MprisController.activePlayer
-    // Use Mpris.players directly - filtering done in delegate visibility
-    readonly property var allPlayers: Mpris.players.values
+    // Use MprisController.players - already filtered and updated imperatively
+    readonly property var allPlayers: MprisController.players
     readonly property real osdWidth: Appearance.sizes.osdWidth
     readonly property real widgetWidth: Appearance.sizes.mediaControlsWidth
     readonly property real widgetHeight: Appearance.sizes.mediaControlsHeight
     readonly property real dockHeight: Config.options?.dock?.height ?? 60
     readonly property real dockMargin: Appearance.sizes.elevationMargin + Appearance.sizes.hyprlandGapsOut
     property real popupRounding: Appearance.inirEverywhere ? Appearance.inir.roundingLarge : Appearance.rounding.large
-    property list<real> visualizerPoints: []
+    readonly property bool visualizerActive: mediaControlsLoader.active && (root.allPlayers?.length ?? 0) > 0
 
-    // Note: Player filtering is centralized in MprisController
-
-    Process {
-        id: cavaProc
-        running: mediaControlsLoader.active
-        onRunningChanged: {
-            if (!cavaProc.running) {
-                root.visualizerPoints = [];
-            }
-        }
-        command: ["cava", "-p", `${FileUtils.trimFileProtocol(Directories.scriptPath)}/cava/raw_output_config.txt`]
-        stdout: SplitParser {
-            onRead: data => {
-                // Parse `;`-separated values into the visualizerPoints array
-                let points = data.split(";").map(p => parseFloat(p.trim())).filter(p => !isNaN(p));
-                root.visualizerPoints = points;
-            }
-        }
+    CavaProcess {
+        id: cavaProcess
+        active: root.visualizerActive
     }
+
+    property list<real> visualizerPoints: cavaProcess.points
 
     Loader {
         id: mediaControlsLoader
@@ -164,50 +151,24 @@ Scope {
 
                     Repeater {
                         model: root.allPlayers
-                        delegate: Item {
+                        delegate: PlayerControl {
                             id: playerDelegate
                             required property MprisPlayer modelData
                             required property int index
                             
-                            // Debounced visibility to prevent flicker during track changes
-                            property bool shouldShow: MprisController.isRealPlayer(modelData)
-                            property bool debouncedVisible: shouldShow
-                            
-                            onShouldShowChanged: {
-                                if (shouldShow) {
-                                    // Show immediately
-                                    hideDebounce.stop()
-                                    debouncedVisible = true
-                                } else {
-                                    // Delay hiding to allow track transition
-                                    hideDebounce.restart()
-                                }
-                            }
-                            
-                            Timer {
-                                id: hideDebounce
-                                interval: 500  // Wait 500ms before hiding
-                                onTriggered: playerDelegate.debouncedVisible = false
-                            }
-                            
-                            visible: debouncedVisible
+                            player: modelData
+                            visualizerPoints: root.visualizerPoints
                             implicitWidth: root.widgetWidth
-                            implicitHeight: visible ? root.widgetHeight : 0
-                            
-                            PlayerControl {
-                                anchors.fill: parent
-                                player: playerDelegate.modelData
-                                visualizerPoints: root.visualizerPoints
-                                radius: root.popupRounding
-                                screenX: cardArea.x + (mediaControlsRoot.width - cardArea.width) / 2
-                                screenY: cardArea.y + playerDelegate.index * (root.widgetHeight - Appearance.sizes.elevationMargin)
-                            }
+                            implicitHeight: root.widgetHeight
+                            radius: root.popupRounding
+                            screenX: cardArea.x + (mediaControlsRoot.width - cardArea.width) / 2
+                            screenY: cardArea.y + index * (root.widgetHeight - Appearance.sizes.elevationMargin)
                         }
                     }
 
                     Item { // No player placeholder
                         Layout.fillWidth: true
-                        visible: MprisController.players.length === 0
+                        visible: root.allPlayers.length === 0
                         implicitWidth: placeholderBackground.implicitWidth + Appearance.sizes.elevationMargin
                         implicitHeight: placeholderBackground.implicitHeight + Appearance.sizes.elevationMargin
 

@@ -3,30 +3,36 @@ import Quickshell
 import Quickshell.Io
 import qs.modules.common
 import qs.modules.common.functions
-
-// CavaProcess - Manages cava audio visualizer with dynamic sink detection
 Item {
     id: root
 
     property bool active: false
     property list<real> points: []
-    // Use a stable path based on user to avoid temp file accumulation
     readonly property string configPath: FileUtils.trimFileProtocol(Directories.cache) + "/cava_config.txt"
     readonly property string scriptPath: FileUtils.trimFileProtocol(Directories.scriptPath) + "/cava/generate_config.sh"
 
-    // Generate config and start cava when active
     onActiveChanged: {
         if (active) {
-            console.log("[CavaProcess] Activating, generating config at:", configPath)
-            cavaProc.running = false
+            stopDebounce.stop()
+            if (cavaProc.running || configGen.running) return
             configGen.running = true
         } else {
-            cavaProc.running = false
-            points = []
+            stopDebounce.restart()
         }
     }
 
-    // Cleanup on destruction
+    Timer {
+        id: stopDebounce
+        interval: 800
+        repeat: false
+        onTriggered: {
+            if (!root.active) {
+                configGen.running = false
+                cavaProc.running = false
+                root.points = []
+            }
+        }
+    }
     Component.onDestruction: {
         cavaProc.running = false
     }
@@ -36,9 +42,10 @@ Item {
         running: false
         command: ["/usr/bin/bash", root.scriptPath, root.configPath]
         onExited: (code, status) => {
-            console.log("[CavaProcess] Config generation exited with code:", code)
             if (code === 0 && root.active) {
-                cavaProc.running = true
+                if (!cavaProc.running) {
+                    cavaProc.running = true
+                }
             }
         }
     }
@@ -48,7 +55,6 @@ Item {
         running: false
         command: ["cava", "-p", root.configPath]
         onRunningChanged: {
-          console.log("[CavaProcess] Cava running:", running)
             if (!running) root.points = []
         }
         stdout: SplitParser {

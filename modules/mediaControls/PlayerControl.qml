@@ -19,14 +19,13 @@ Item {
     required property list<real> visualizerPoints
     property real radius: Appearance.rounding.large
     
+    // Use centralized YtMusic detection from MprisController
     readonly property bool isYtMusicPlayer: {
         if (!player) return false
+        // Direct match with YtMusic.mpvPlayer
         if (YtMusic.mpvPlayer && player === YtMusic.mpvPlayer) return true
-        const id = (player.identity ?? "").toLowerCase()
-        const entry = (player.desktopEntry ?? "").toLowerCase()
-        if (id !== "mpv" && !id.includes("mpv") && entry !== "mpv" && !entry.includes("mpv")) return false
-        const trackUrl = player.metadata?.["xesam:url"] ?? ""
-        return trackUrl.includes("youtube.com") || trackUrl.includes("youtu.be")
+        // Use MprisController's detection for consistency
+        return MprisController._isYtMusicMpv(player)
     }
     
     function doTogglePlaying(): void {
@@ -347,17 +346,19 @@ Item {
                     onTriggered: coverArtContainer.transitioning = false
                 }
 
-    Connections {
-        target: root
-        function onDisplayedArtFilePathChanged() {
-            if (!root.displayedArtFilePath) {
-                coverArt.source = ""
-                return
-            }
-            if (!coverArt.source.toString()) {
-                coverArt.source = root.displayedArtFilePath
-                return
-            }
+                Connections {
+                    target: root
+                    function onDisplayedArtFilePathChanged() {
+                        if (!root.displayedArtFilePath) {
+                            coverArt.source = ""
+                            return
+                        }
+                        // First set: don't animate
+                        if (!coverArt.source || !coverArt.source.toString()) {
+                            coverArt.source = root.displayedArtFilePath
+                            return
+                        }
+                        // Subsequent changes: blur in -> swap -> blur out
                         coverArtContainer.pendingSource = root.displayedArtFilePath
                         coverArtContainer.transitioning = true
                         blurInTimer.start()
