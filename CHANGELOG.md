@@ -5,6 +5,21 @@ All notable changes to iNiR will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.7.0] - 2026-01-21
+
+### Added
+- **Bar module toggles**: Individual enable/disable options for bar modules (resources, media, workspaces, clock, utility buttons, battery, sidebar buttons)
+- **Region search**: Google Lens action via IPC (`region.googleLens`)
+
+### Changed
+- **Media player pipeline**: Centralized filtering/deduping via `MprisController.displayPlayers` for consistent behavior across widgets
+- **Cava visualizer**: Debounced process activation to avoid rapid stop/start loops
+
+### Fixed
+- **Shell performance**: Reduced stutter by rebuilding MPRIS player lists imperatively instead of hot bindings
+- **Bar stability**: Null-safe config access for bar components to prevent startup `ReferenceError`
+- **Darkly theme generation**: Adaptive clamping to prevent icons/colors from collapsing to pure black/white
+
 ## [2.6.0] - 2026-01-11
 
 ### Added
