@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.8.0] - 2026-02-04
 
 ### Added
-- **Screen cast toggle**: Bar utility button with dynamic state detection for screen recording/casting
+- **Screen cast toggle**: Bar utility button for Niri screen casting with configurable output (PR #29 by @levpr1c)
 - **System sounds volume control**: Configurable volume for timer, pomodoro, and battery notification sounds
 
 ### Changed
