@@ -161,59 +161,18 @@ Item {
             }
         }
 
-        // Screen casting indicator/control (shows when active OR when enabled in config)
-        // Based on PR #29 by levpr1c - improved with dynamic state detection
         Loader {
-            active: root.screenShareActive || (Config.options?.bar?.utilButtons?.showScreenCast ?? false)
+            active: root.screenShareActive
             visible: active
             sourceComponent: CircleUtilButton {
-                id: screenCastButton
                 Layout.alignment: Qt.AlignVCenter
                 
-                readonly property bool isCasting: root.screenShareActive
-                
-                onClicked: {
-                    if (isCasting) {
-                        Quickshell.execDetached(["niri", "msg", "action", "clear-dynamic-cast-target"])
-                        Quickshell.execDetached(["notify-send", "-i", "camera-video-off", "Screen Casting", "Casting stopped"])
-                    } else {
-                        // Use configured output or default to first HDMI
-                        const output = Config.options?.bar?.utilButtons?.screenCastOutput ?? "HDMI-A-1"
-                        Quickshell.execDetached(["niri", "msg", "action", "set-dynamic-cast-monitor", output])
-                        Quickshell.execDetached(["notify-send", "-i", "video-display", "Screen Casting", `Casting started on ${output}`])
-                    }
-                }
-                
-                Item {
-                    anchors.fill: parent
-                    
-                    MaterialSymbol {
-                        anchors.centerIn: parent
-                        horizontalAlignment: Qt.AlignHCenter
-                        fill: screenCastButton.isCasting ? 1 : 0
-                        text: "visibility"
-                        iconSize: Appearance.font.pixelSize.large
-                        color: screenCastButton.isCasting
-                            ? (Appearance.inirEverywhere ? Appearance.inir.colError : Appearance.colors.colError)
-                            : (Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer2)
-                    }
-                    
-                    // Pulsating indicator dot when casting
-                    Rectangle {
-                        visible: screenCastButton.isCasting
-                        width: 6
-                        height: 6
-                        radius: 3
-                        color: Appearance.inirEverywhere ? Appearance.inir.colError : Appearance.colors.colError
-                        anchors { top: parent.top; right: parent.right }
-                        
-                        SequentialAnimation on opacity {
-                            running: screenCastButton.isCasting
-                            loops: Animation.Infinite
-                            NumberAnimation { to: 0.4; duration: 800 }
-                            NumberAnimation { to: 1.0; duration: 800 }
-                        }
-                    }
+                MaterialSymbol {
+                    horizontalAlignment: Qt.AlignHCenter
+                    fill: 1
+                    text: "visibility"
+                    iconSize: Appearance.font.pixelSize.large
+                    color: Appearance.inirEverywhere ? Appearance.inir.colError : Appearance.colors.colError
                 }
             }
         }
