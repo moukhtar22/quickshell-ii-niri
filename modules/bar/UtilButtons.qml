@@ -177,21 +177,33 @@ Item {
             }
         }
 
-        // Screen casting control button (PR #29 by levpr1c)
-        // Only available with 2+ monitors on Niri
+        // Screen casting control/indicator (PR #29 by levpr1c, enhanced)
+        // With 2+ monitors: Interactive button for dynamic cast (mirroring)
+        // With 1 monitor: Passive indicator showing active screencasts
         Loader {
             active: (Config.options?.bar?.utilButtons?.showScreenCast ?? false) 
-                    && CompositorService.isNiri 
-                    && root.connectedOutputs >= 2
+                    && CompositorService.isNiri
             visible: active
             sourceComponent: CircleUtilButton {
                 id: screenCastButton
                 Layout.alignment: Qt.AlignVCenter
                 
-                // Internal state for cyclic toggling, independent of external system sensors
-                property bool isCasting: false
+                // Behavior depends on monitor count
+                readonly property bool isMultiMonitor: root.connectedOutputs >= 2
+                
+                // Multi-monitor: use persistent state for dynamic cast control
+                // Single monitor: use screenShareActive for passive indication
+                readonly property bool isCasting: isMultiMonitor 
+                    ? Persistent.states.screenCast.active
+                    : root.screenShareActive
+                
+                // Only clickable with multiple monitors
+                enabled: isMultiMonitor
+                opacity: isMultiMonitor ? 1.0 : (isCasting ? 1.0 : 0.6)
                 
                 onClicked: {
+                    if (!isMultiMonitor) return // Safety check
+                    
                     if (isCasting) {
                         // Stop casting to the monitor
                         Quickshell.execDetached(["niri", "msg", "action", "clear-dynamic-cast-target"])
@@ -199,16 +211,17 @@ Item {
                         // Send notification with "video off" icon
                         Quickshell.execDetached(["notify-send", "-i", "camera-video-off", "Screen Casting", "Casting stopped"])
                         
-                        isCasting = false
+                        Persistent.states.screenCast.active = false
                     } else {
-                        // Use configured output or default to HDMI-A-1
+                        // Use configured output (default HDMI-A-1)
                         const output = Config.options?.bar?.utilButtons?.screenCastOutput ?? "HDMI-A-1"
+                        
                         Quickshell.execDetached(["niri", "msg", "action", "set-dynamic-cast-monitor", output])
                         
                         // Send notification with "display" icon
                         Quickshell.execDetached(["notify-send", "-i", "video-display", "Screen Casting", `Casting started on ${output}`])
                         
-                        isCasting = true
+                        Persistent.states.screenCast.active = true
                     }
                 }
                 

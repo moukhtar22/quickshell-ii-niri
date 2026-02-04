@@ -649,7 +649,7 @@ ContentPage {
                     checked: Config.options.bar.utilButtons.showScreenCast
                     onCheckedChanged: Config.options.bar.utilButtons.showScreenCast = checked
                     StyledToolTip {
-                        text: Translation.tr("Toggle Niri screen casting to external monitor (requires 2+ monitors)")
+                        text: Translation.tr("Adaptive screen cast button: control with 2+ monitors, indicator with 1 monitor")
                     }
                 }
                 SettingsSwitch {
@@ -663,7 +663,7 @@ ContentPage {
             StyledText {
                 visible: Config.options.bar.utilButtons.showScreenCast
                 Layout.fillWidth: true
-                text: Translation.tr("Note: Screen cast button only appears when 2+ monitors are connected")
+                text: Translation.tr("With 2+ monitors: Interactive button to start/stop screen mirroring. With 1 monitor: Passive indicator showing active screencasts.")
                 color: Appearance.colors.colSubtext
                 font.pixelSize: Appearance.font.pixelSize.smaller
                 wrapMode: Text.WordWrap

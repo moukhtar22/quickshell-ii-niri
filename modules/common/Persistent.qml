@@ -192,6 +192,10 @@ Singleton {
                     property int duration: 60
                 }
             }
+
+            property JsonObject screenCast: JsonObject {
+                property bool active: false
+            }
         }
     }
 }
