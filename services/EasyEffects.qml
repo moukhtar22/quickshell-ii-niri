@@ -78,7 +78,7 @@ Singleton {
     Process {
         id: flatpakInfoProc
         running: false
-        command: ["/usr/bin/flatpak", "info", "com.github.wwmm.easyeffects"]
+        command: ["/bin/sh", "-c", "flatpak info com.github.wwmm.easyeffects"]
         onExited: (exitCode, exitStatus) => {
             root.available = (exitCode === 0)
         }
@@ -100,7 +100,7 @@ Singleton {
     Process {
         id: flatpakPsProc
         running: false
-        command: ["/usr/bin/flatpak", "ps", "--columns=application"]
+        command: ["/bin/sh", "-c", "flatpak ps --columns=application"]
         stdout: StdioCollector {
             id: flatpakPsCollector
             onStreamFinished: {
@@ -124,6 +124,6 @@ Singleton {
     Process {
         id: flatpakKillProc
         running: false
-        command: ["/usr/bin/flatpak", "kill", "com.github.wwmm.easyeffects"]
+        command: ["/bin/sh", "-c", "flatpak kill com.github.wwmm.easyeffects"]
     }
 }

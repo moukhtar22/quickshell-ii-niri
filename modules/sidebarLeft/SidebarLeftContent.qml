@@ -21,7 +21,7 @@ Item {
     
     // Delay content loading until after animation completes
     property bool contentReady: false
-    
+
     Connections {
         target: GlobalStates
         function onSidebarLeftOpenChanged() {
@@ -31,31 +31,38 @@ Item {
             }
         }
     }
-    
+
     Timer {
         id: contentDelayTimer
         interval: 200
         onTriggered: root.contentReady = true
     }
-    
+
     property bool aiChatEnabled: (Config.options?.policies?.ai ?? 0) !== 0
     property bool translatorEnabled: (Config.options?.sidebar?.translator?.enable ?? false)
     property bool animeEnabled: (Config.options?.policies?.weeb ?? 0) !== 0
     property bool animeCloset: (Config.options?.policies?.weeb ?? 0) === 2
     property bool animeScheduleEnabled: Config.options?.sidebar?.animeSchedule?.enable ?? false
     property bool redditEnabled: Config.options?.sidebar?.reddit?.enable ?? false
-    property bool wallhavenEnabled: Config.options.sidebar?.wallhaven?.enable !== false
+    property bool wallhavenEnabled: Config.options?.sidebar?.wallhaven?.enable !== false
     property bool widgetsEnabled: Config.options?.sidebar?.widgets?.enable ?? true
-    
-    property var tabButtonList: [
-        ...(root.widgetsEnabled ? [{"icon": "widgets", "name": Translation.tr("Widgets")}] : []),
-        ...(root.aiChatEnabled ? [{"icon": "neurology", "name": Translation.tr("Intelligence")}] : []),
-        ...(root.translatorEnabled ? [{"icon": "translate", "name": Translation.tr("Translator")}] : []),
-        ...((root.animeEnabled && !root.animeCloset) ? [{"icon": "bookmark_heart", "name": Translation.tr("Anime")}] : []),
-        ...(root.animeScheduleEnabled ? [{"icon": "calendar_month", "name": Translation.tr("Schedule")}] : []),
-        ...(root.redditEnabled ? [{"icon": "forum", "name": Translation.tr("Reddit")}] : []),
-        ...(root.wallhavenEnabled ? [{"icon": "collections", "name": Translation.tr("Wallhaven")}] : [])
-    ]
+    property bool toolsEnabled: Config.options?.sidebar?.tools?.enable ?? false
+    property bool ytMusicEnabled: Config.options?.sidebar?.ytmusic?.enable ?? false
+
+    // Tab button list - simple static order
+    property var tabButtonList: {
+        const result = []
+        if (root.widgetsEnabled) result.push({ icon: "widgets", name: Translation.tr("Widgets") })
+        if (root.aiChatEnabled) result.push({ icon: "neurology", name: Translation.tr("Intelligence") })
+        if (root.translatorEnabled) result.push({ icon: "translate", name: Translation.tr("Translator") })
+        if (root.animeEnabled && !root.animeCloset) result.push({ icon: "bookmark_heart", name: Translation.tr("Anime") })
+        if (root.animeScheduleEnabled) result.push({ icon: "calendar_month", name: Translation.tr("Schedule") })
+        if (root.redditEnabled) result.push({ icon: "forum", name: Translation.tr("Reddit") })
+        if (root.wallhavenEnabled) result.push({ icon: "collections", name: Translation.tr("Wallhaven") })
+        if (root.ytMusicEnabled) result.push({ icon: "library_music", name: Translation.tr("YT Music") })
+        if (root.toolsEnabled) result.push({ icon: "build", name: Translation.tr("Tools") })
+        return result
+    }
 
     function focusActiveItem() {
         swipeView.currentItem?.forceActiveFocus()
@@ -74,7 +81,7 @@ Item {
         anchors.fill: parent
         implicitHeight: parent.height - Appearance.sizes.hyprlandGapsOut * 2
         implicitWidth: sidebarWidth - Appearance.sizes.hyprlandGapsOut * 2
-        property bool cardStyle: Config.options.sidebar?.cardStyle ?? false
+        property bool cardStyle: Config.options?.sidebar?.cardStyle ?? false
         readonly property bool auroraEverywhere: Appearance.auroraEverywhere
         readonly property bool gameModeMinimal: Appearance.gameModeMinimal
         readonly property string wallpaperUrl: Wallpapers.effectiveWallpaperUrl
@@ -141,13 +148,14 @@ Item {
             Toolbar {
                 Layout.alignment: Qt.AlignHCenter
                 enableShadow: false
-                transparent: Appearance.auroraEverywhere
+                transparent: Appearance.auroraEverywhere || Appearance.inirEverywhere
                 ToolbarTabBar {
                     id: tabBar
                     Layout.alignment: Qt.AlignHCenter
                     maxWidth: Math.max(0, root.width - (root.sidebarPadding * 2) - 16)
                     tabButtonList: root.tabButtonList
-                    currentIndex: swipeView.currentIndex
+                    // Don't bind to swipeView - let tabBar be the source of truth
+                    onCurrentIndexChanged: swipeView.currentIndex = currentIndex
                 }
             }
 
@@ -165,15 +173,15 @@ Item {
                     id: swipeView
                     anchors.fill: parent
                     spacing: 10
-                    currentIndex: tabBar.currentIndex
-                    interactive: !(currentItem?.editMode ?? false)
-
+                    // Sync back to tabBar when swiping
                     onCurrentIndexChanged: {
-                        const currentTab = root.tabButtonList[swipeView.currentIndex]
+                        tabBar.setCurrentIndex(currentIndex)
+                        const currentTab = root.tabButtonList[currentIndex]
                         if (currentTab?.icon === "neurology") {
                             Ai.ensureInitialized()
                         }
                     }
+                    interactive: !(currentItem?.editMode ?? false)
 
                     clip: true
                     layer.enabled: root.contentReady
@@ -200,6 +208,8 @@ Item {
                                     case "calendar_month": return animeScheduleComp
                                     case "forum": return redditComp
                                     case "collections": return wallhavenComp
+                                    case "library_music": return ytMusicComp
+                                    case "build": return toolsComp
                                     default: return null
                                 }
                             }
@@ -216,6 +226,8 @@ Item {
         Component { id: animeScheduleComp; AnimeScheduleView {} }
         Component { id: redditComp; RedditView {} }
         Component { id: wallhavenComp; WallhavenView {} }
+        Component { id: ytMusicComp; YtMusicView {} }
+        Component { id: toolsComp; ToolsView {} }
 
         Keys.onPressed: (event) => {
             if (event.key === Qt.Key_Escape) {

@@ -18,14 +18,22 @@ Item {
     property real buttonPadding: 5
     property bool vertical: false
     property string dockPosition: "bottom"
+    property var parentWindow: null
 
     property Item lastHoveredButton
     property bool buttonHovered: false
     property bool contextMenuOpen: false
-    property bool requestDockShow: previewPopup.show || contextMenuOpen
+    property bool requestDockShow: dockPreviewPopup.visible || contextMenuOpen
     
     // Signal to close any open context menu before opening a new one
     signal closeAllContextMenus()
+    
+    // Function to show the new preview popup (Waffle-style)
+    function showPreviewPopup(appEntry: var, button: Item): void {
+        // Respect hoverPreview setting
+        if (Config.options?.dock?.hoverPreview === false) return
+        dockPreviewPopup.show(appEntry, button)
+    }
 
     Layout.fillHeight: !vertical
     Layout.fillWidth: vertical
@@ -33,6 +41,12 @@ Item {
     implicitHeight: listView.contentHeight
     
     property var dockItems: []
+    
+    // Direct reactive binding to Config - will automatically trigger when Config changes
+    readonly property bool separatePinnedFromRunning: Config.options?.dock?.separatePinnedFromRunning ?? true
+    onSeparatePinnedFromRunningChanged: {
+        root.rebuildDockItems()
+    }
     
     // Cache compiled regexes - only recompile when config changes
     property var _cachedIgnoredRegexes: []
@@ -53,29 +67,17 @@ Item {
     function rebuildDockItems() {
         const pinnedApps = Config.options?.dock?.pinnedApps ?? [];
         const ignoredRegexes = _getIgnoredRegexes();
+        const separatePinnedFromRunning = root.separatePinnedFromRunning;
 
-        // Build a unified map: pinned apps first, then add open windows to them
-        const appMap = new Map();
-        
-        // 1) Add pinned apps first (they'll be shown even without windows)
-        for (const appId of pinnedApps) {
-            const lowerAppId = appId.toLowerCase();
-            appMap.set(lowerAppId, {
-                appId: appId,
-                toplevels: [],
-                pinned: true
-            });
-        }
-
-        // 2) Add open windows - combine with pinned if same app
+        // Get all open windows
         const allToplevels = CompositorService.sortedToplevels && CompositorService.sortedToplevels.length
                 ? CompositorService.sortedToplevels
                 : ToplevelManager.toplevels.values;
         
+        // Build map of running apps (apps with open windows)
+        const runningAppsMap = new Map();
         for (const toplevel of allToplevels) {
             if (!toplevel.appId) continue;
-            
-            // Fast check for exact matches before regex
             if (toplevel.appId === "" || toplevel.appId === "null") continue;
 
             if (ignoredRegexes.some(re => re.test(toplevel.appId))) {
@@ -83,65 +85,53 @@ Item {
             }
 
             const lowerAppId = toplevel.appId.toLowerCase();
-            if (!appMap.has(lowerAppId)) {
-                // Not pinned, create new entry for open app
-                appMap.set(lowerAppId, {
+            if (!runningAppsMap.has(lowerAppId)) {
+                runningAppsMap.set(lowerAppId, {
                     appId: toplevel.appId,
                     toplevels: [],
                     pinned: false
                 });
             }
-            // Add toplevel to the entry (whether pinned or not)
-            appMap.get(lowerAppId).toplevels.push(toplevel);
+            runningAppsMap.get(lowerAppId).toplevels.push(toplevel);
         }
 
         const values = [];
         let order = 0;
-        let hasPinned = false;
-        let hasUnpinned = false;
-
-        // 3) Build final list: pinned apps first
-        for (const appId of pinnedApps) {
-            const lowerAppId = appId.toLowerCase();
-            const entry = appMap.get(lowerAppId);
-            if (entry) {
+        
+        // If separation is disabled, use legacy behavior: combine pinned with their running windows
+        if (!separatePinnedFromRunning) {
+            // Add all pinned apps (with or without windows)
+            for (const appId of pinnedApps) {
+                const lowerAppId = appId.toLowerCase();
+                const runningEntry = runningAppsMap.get(lowerAppId);
                 values.push({
                     uniqueId: "app-" + lowerAppId,
                     appId: lowerAppId,
-                    toplevels: entry.toplevels,
+                    toplevels: runningEntry?.toplevels ?? [],
                     pinned: true,
-                    originalAppId: entry.appId,
+                    originalAppId: appId,
                     section: "pinned",
                     order: order++
                 });
-                hasPinned = true;
+                // Remove from running map so we don't add it again
+                runningAppsMap.delete(lowerAppId);
             }
-        }
-
-        // 4) Check if there are unpinned open apps
-        for (const [lowerAppId, entry] of appMap) {
-            if (!entry.pinned) {
-                hasUnpinned = true;
-                break;
+            
+            // Add separator if there are both pinned and unpinned running apps
+            if (values.length > 0 && runningAppsMap.size > 0) {
+                values.push({
+                    uniqueId: "separator",
+                    appId: "SEPARATOR",
+                    toplevels: [],
+                    pinned: false,
+                    originalAppId: "SEPARATOR",
+                    section: "separator",
+                    order: order++
+                });
             }
-        }
-
-        // 5) Separator only when there are both pinned and unpinned apps
-        if (hasPinned && hasUnpinned) {
-            values.push({
-                uniqueId: "separator",
-                appId: "SEPARATOR",
-                toplevels: [],
-                pinned: false,
-                originalAppId: "SEPARATOR",
-                section: "separator",
-                order: order++
-            });
-        }
-
-        // 6) Open (unpinned) apps on the right
-        for (const [lowerAppId, entry] of appMap) {
-            if (!entry.pinned) {
+            
+            // Add unpinned running apps
+            for (const [lowerAppId, entry] of runningAppsMap) {
                 values.push({
                     uniqueId: "app-" + lowerAppId,
                     appId: lowerAppId,
@@ -149,6 +139,77 @@ Item {
                     pinned: false,
                     originalAppId: entry.appId,
                     section: "open",
+                    order: order++
+                });
+            }
+        } else {
+            // NEW BEHAVIOR: Separate pinned-only from running apps
+            // 1) Add ONLY pinned apps (without running windows) - left section
+            for (const appId of pinnedApps) {
+                const lowerAppId = appId.toLowerCase();
+                // Only show pinned apps that don't have running windows
+                if (!runningAppsMap.has(lowerAppId)) {
+                    values.push({
+                        uniqueId: "app-" + lowerAppId,
+                        appId: lowerAppId,
+                        toplevels: [],
+                        pinned: true,
+                        originalAppId: appId,
+                        section: "pinned",
+                        order: order++
+                    });
+                }
+            }
+            
+            // 2) Add separator if there are both pinned-only apps and running apps
+            const hasPinnedOnly = values.length > 0;
+            const hasRunning = runningAppsMap.size > 0;
+            
+            if (hasPinnedOnly && hasRunning) {
+                values.push({
+                    uniqueId: "separator",
+                    appId: "SEPARATOR",
+                    toplevels: [],
+                    pinned: false,
+                    originalAppId: "SEPARATOR",
+                    section: "separator",
+                    order: order++
+                });
+            }
+            
+            // 3) Add running apps (right section) - includes pinned apps that are also running
+            const sortedRunningApps = [];
+            for (const [lowerAppId, entry] of runningAppsMap) {
+                sortedRunningApps.push({
+                    lowerAppId: lowerAppId,
+                    entry: entry
+                });
+            }
+            // Sort to keep consistency: pinned+running apps first (by pinned order), then unpinned
+            sortedRunningApps.sort((a, b) => {
+                const aIndex = pinnedApps.findIndex(p => p.toLowerCase() === a.lowerAppId);
+                const bIndex = pinnedApps.findIndex(p => p.toLowerCase() === b.lowerAppId);
+                
+                const aIsPinned = aIndex !== -1;
+                const bIsPinned = bIndex !== -1;
+                
+                // Pinned apps first (in their pinned order)
+                if (aIsPinned && bIsPinned) return aIndex - bIndex;
+                if (aIsPinned) return -1;
+                if (bIsPinned) return 1;
+                
+                // Unpinned apps maintain their order
+                return 0;
+            });
+            
+            for (const {lowerAppId, entry} of sortedRunningApps) {
+                values.push({
+                    uniqueId: "app-" + lowerAppId,
+                    appId: lowerAppId,
+                    toplevels: entry.toplevels,
+                    pinned: pinnedApps.some(p => p.toLowerCase() === lowerAppId),
+                    originalAppId: entry.appId,
+                    section: "running",
                     order: order++
                 });
             }
@@ -223,194 +284,23 @@ Item {
             bottomInset: 0
             leftInset: 0
             rightInset: 0
-        }
-    }
-
-    PopupWindow {
-        id: previewPopup
-        property var appTopLevel: root.lastHoveredButton?.appToplevel
-        property bool allPreviewsReady: false
-        Connections {
-            target: root
-            function onLastHoveredButtonChanged() {
-                previewPopup.allPreviewsReady = false; // Reset readiness when the hovered button changes
-            } 
-        }
-        function updatePreviewReadiness() {
-            for(var i = 0; i < previewRowLayout.children.length; i++) {
-                const view = previewRowLayout.children[i];
-                if (view.hasContent === false) {
-                    allPreviewsReady = false;
-                    return;
-                }
+            
+            // Connect hover preview signals
+            onHoverPreviewRequested: {
+                root.showPreviewPopup(appToplevel, this)
             }
-            allPreviewsReady = true;
-        }
-        property bool shouldShow: {
-            const hoverConditions = (popupMouseArea.containsMouse || root.buttonHovered)
-            return hoverConditions && allPreviewsReady;
-        }
-        property bool show: false
-
-        onShouldShowChanged: {
-            if (shouldShow) {
-                // show = true;
-                updateTimer.restart();
-            } else {
-                updateTimer.restart();
-            }
-        }
-        Timer {
-            id: updateTimer
-            interval: 100
-            onTriggered: {
-                previewPopup.show = previewPopup.shouldShow
-            }
-        }
-        anchor {
-            window: root.QsWindow.window
-            adjustment: PopupAdjustment.None
-            gravity: Edges.Top | Edges.Right
-            edges: Edges.Top | Edges.Left
-
-        }
-        visible: popupBackground.visible
-        color: "transparent"
-        implicitWidth: root.QsWindow.window?.width ?? 1
-        implicitHeight: popupMouseArea.implicitHeight + root.windowControlsHeight + Appearance.sizes.elevationMargin * 2
-
-        MouseArea {
-            id: popupMouseArea
-            anchors.bottom: parent.bottom
-            implicitWidth: popupBackground.implicitWidth + Appearance.sizes.elevationMargin * 2
-            implicitHeight: root.maxWindowPreviewHeight + root.windowControlsHeight + Appearance.sizes.elevationMargin * 2
-            hoverEnabled: true
-            x: {
-                if (root.QsWindow && root.lastHoveredButton && root.lastHoveredButton.width > 0) {
-                    const itemCenter = root.QsWindow.mapFromItem(root.lastHoveredButton, root.lastHoveredButton.width / 2, 0);
-                    return itemCenter.x - width / 2;
-                }
-                return 0;
-            }
-            StyledRectangularShadow {
-                target: popupBackground
-                opacity: previewPopup.show ? 1 : 0
-                visible: opacity > 0
-                Behavior on opacity {
-                    animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
-                }
-            }
-            Rectangle {
-                id: popupBackground
-                property real padding: 5
-                opacity: previewPopup.show ? 1 : 0
-                visible: opacity > 0
-                Behavior on opacity {
-                    animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
-                }
-                clip: true
-                color: Appearance.auroraEverywhere ? Appearance.aurora.colPopupSurface : Appearance.colors.colSurfaceContainer
-                radius: Appearance.rounding.normal
-                anchors.bottom: parent.bottom
-                anchors.bottomMargin: Appearance.sizes.elevationMargin
-                anchors.horizontalCenter: parent.horizontalCenter
-                implicitHeight: previewRowLayout.implicitHeight + padding * 2
-                implicitWidth: previewRowLayout.implicitWidth + padding * 2
-                Behavior on implicitWidth {
-                    animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
-                }
-                Behavior on implicitHeight {
-                    animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
-                }
-
-                RowLayout {
-                    id: previewRowLayout
-                    anchors.centerIn: parent
-                    Repeater {
-                        model: ScriptModel {
-                            values: previewPopup.appTopLevel?.toplevels ?? []
-                        }
-                        RippleButton {
-                            id: windowButton
-                            required property var modelData
-                            padding: 0
-                            middleClickAction: () => {
-                                windowButton.modelData?.close();
-                            }
-                            onClicked: {
-                                if (CompositorService.isNiri) {
-                                    if (windowButton.modelData?.niriWindowId) {
-                                        NiriService.focusWindow(windowButton.modelData.niriWindowId)
-                                    } else if (windowButton.modelData?.activate) {
-                                        windowButton.modelData.activate()
-                                    }
-                                } else {
-                                    windowButton.modelData?.activate();
-                                }
-                            }
-                            contentItem: ColumnLayout {
-                                implicitWidth: screencopyView.implicitWidth
-                                implicitHeight: screencopyView.implicitHeight
-
-                                ButtonGroup {
-                                    contentWidth: parent.width - anchors.margins * 2
-                                    WrapperRectangle {
-                                        Layout.fillWidth: true
-                                        color: Appearance.auroraEverywhere ? "transparent" : ColorUtils.transparentize(Appearance.colors.colSurfaceContainer)
-                                        radius: Appearance.rounding.small
-                                        margin: 5
-                                        StyledText {
-                                            Layout.fillWidth: true
-                                            font.pixelSize: Appearance.font.pixelSize.small
-                                            text: windowButton.modelData?.title
-                                            elide: Text.ElideRight
-                                            color: Appearance.m3colors.m3onSurface
-                                        }
-                                    }
-                                    GroupButton {
-                                        id: closeButton
-                                        colBackground: Appearance.auroraEverywhere ? "transparent" : ColorUtils.transparentize(Appearance.colors.colSurfaceContainer)
-                                        baseWidth: windowControlsHeight
-                                        baseHeight: windowControlsHeight
-                                        buttonRadius: Appearance.rounding.full
-                                        contentItem: MaterialSymbol {
-                                            anchors.centerIn: parent
-                                            horizontalAlignment: Text.AlignHCenter
-                                            text: "close"
-                                            iconSize: Appearance.font.pixelSize.normal
-                                            color: Appearance.m3colors.m3onSurface
-                                        }
-                                        onClicked: {
-                                            windowButton.modelData?.close();
-                                        }
-                                    }
-                                }
-                                ScreencopyView {
-                                    id: screencopyView
-                                    // Evitar warnings cuando el compositor no soporta screencopy (ej. Niri)
-                                    captureSource: (CompositorService.isHyprland && previewPopup.show)
-                                                  ? windowButton.modelData
-                                                  : null
-                                    live: true
-                                    paintCursor: true
-                                    constraintSize: Qt.size(root.maxWindowPreviewWidth, root.maxWindowPreviewHeight)
-                                    onHasContentChanged: {
-                                        previewPopup.updatePreviewReadiness();
-                                    }
-                                    layer.enabled: true
-                                    layer.effect: OpacityMask {
-                                        maskSource: Rectangle {
-                                            width: screencopyView.width
-                                            height: screencopyView.height
-                                            radius: Appearance.rounding.small
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+            onHoverPreviewDismissed: {
+                dockPreviewPopup.close()
             }
         }
     }
+    
+    // New Waffle-style preview popup
+    DockPreview {
+        id: dockPreviewPopup
+        dockHovered: root.buttonHovered
+        dockPosition: root.dockPosition
+        anchor.window: root.parentWindow
+    }
+
 }

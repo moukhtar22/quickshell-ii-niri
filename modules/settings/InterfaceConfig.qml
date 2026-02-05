@@ -182,6 +182,16 @@ ContentPage {
 
         SettingsGroup {
             SettingsSwitch {
+                buttonIcon: "visibility_off"
+                text: Translation.tr("No visual UI (cycle windows only)")
+                checked: Config.options?.altSwitcher?.noVisualUi ?? false
+                onCheckedChanged: Config.setNestedValue("altSwitcher.noVisualUi", checked)
+                StyledToolTip {
+                    text: Translation.tr("Use Alt+Tab to switch windows without showing the switcher overlay")
+                }
+            }
+
+            SettingsSwitch {
                 buttonIcon: "colors"
                 text: Translation.tr("Tint app icons")
                 checked: Config.options?.altSwitcher?.monochromeIcons ?? false
@@ -430,6 +440,16 @@ ContentPage {
                 }
             }
 
+            SettingsSwitch {
+                buttonIcon: "splitscreen"
+                text: Translation.tr("Separate pinned from running")
+                checked: Config.options?.dock?.separatePinnedFromRunning ?? true
+                onCheckedChanged: Config.setNestedValue('dock.separatePinnedFromRunning', checked)
+                StyledToolTip {
+                    text: Translation.tr("Show pinned-only apps on the left, running apps on the right with a separator")
+                }
+            }
+
             ContentSubsection {
                 title: Translation.tr("Appearance")
 
@@ -539,6 +559,38 @@ ContentPage {
                     }
                     StyledToolTip {
                         text: Translation.tr("Limit the number of open window dots shown below an app icon")
+                    }
+                }
+            }
+
+            ContentSubsection {
+                title: Translation.tr("Window preview")
+
+                SettingsSwitch {
+                    buttonIcon: "preview"
+                    text: Translation.tr("Show preview on hover")
+                    checked: Config.options.dock.hoverPreview !== false
+                    onCheckedChanged: {
+                        Config.options.dock.hoverPreview = checked;
+                    }
+                    StyledToolTip {
+                        text: Translation.tr("Display a live preview of windows when hovering over dock icons")
+                    }
+                }
+
+                ConfigSpinBox {
+                    icon: "timer"
+                    text: Translation.tr("Hover delay (ms)")
+                    value: Config.options.dock.hoverPreviewDelay ?? 400
+                    from: 0
+                    to: 1000
+                    stepSize: 50
+                    enabled: Config.options.dock.hoverPreview !== false
+                    onValueChanged: {
+                        Config.options.dock.hoverPreviewDelay = value;
+                    }
+                    StyledToolTip {
+                        text: Translation.tr("Time to wait before showing window preview")
                     }
                 }
             }
@@ -912,7 +964,7 @@ ContentPage {
 
         SettingsGroup {
             ContentSubsection {
-                title: Translation.tr("Style")
+                title: Translation.tr("General")
                 SettingsSwitch {
                     buttonIcon: "branding_watermark"
                     text: Translation.tr("Use Card style")
@@ -927,7 +979,7 @@ ContentPage {
                             : Translation.tr("Only available with Material or Inir global style")
                     }
                 }
-            }
+
             SettingsSwitch {
                 buttonIcon: "memory"
                 text: Translation.tr('Keep right sidebar loaded')
@@ -949,9 +1001,10 @@ ContentPage {
                     text: Translation.tr("Open file manager when downloading wallpapers from Wallhaven or Booru")
                 }
             }
+            }
 
             ContentSubsection {
-                title: Translation.tr("Left sidebar tabs")
+                title: Translation.tr("Left Sidebar")
                 tooltip: Translation.tr("Choose which tabs appear in the left sidebar")
 
                 SettingsSwitch {
@@ -1033,8 +1086,148 @@ ContentPage {
                         text: Translation.tr("Browse posts from your favorite subreddits")
                     }
                 }
+
+                SettingsSwitch {
+                    buttonIcon: "build"
+                    text: Translation.tr("Tools")
+                    checked: Config.options.sidebar?.tools?.enable ?? false
+                    onCheckedChanged: Config.setNestedValue("sidebar.tools.enable", checked)
+                    StyledToolTip {
+                        text: Translation.tr("Niri debug options and quick actions")
+                    }
+                }
+
+                SettingsSwitch {
+                    buttonIcon: "library_music"
+                    text: Translation.tr("YT Music")
+                    checked: Config.options.sidebar?.ytmusic?.enable ?? false
+                    onCheckedChanged: Config.setNestedValue("sidebar.ytmusic.enable", checked)
+                    StyledToolTip {
+                        text: Translation.tr("Search and play music from YouTube using yt-dlp")
+                    }
+                }
             }
 
+            ContentSubsection {
+                id: rightSidebarWidgets
+                title: Translation.tr("Right Sidebar")
+                tooltip: Translation.tr("Toggle which widgets appear in the right sidebar")
+
+                readonly property var defaults: ["calendar", "todo", "notepad", "calculator", "sysmon", "timer"]
+
+                function isEnabled(widgetId) {
+                    return (Config.options?.sidebar?.right?.enabledWidgets ?? defaults).includes(widgetId)
+                }
+
+                function setWidget(widgetId, active) {
+                    console.log(`[RightSidebar] setWidget(${widgetId}, ${active})`)
+                    let current = [...(Config.options?.sidebar?.right?.enabledWidgets ?? defaults)]
+                    console.log(`[RightSidebar] Current widgets:`, JSON.stringify(current))
+                    
+                    if (active && !current.includes(widgetId)) {
+                        current.push(widgetId)
+                        console.log(`[RightSidebar] Adding ${widgetId}, new array:`, JSON.stringify(current))
+                        Config.setNestedValue("sidebar.right.enabledWidgets", current)
+                    } else if (!active && current.includes(widgetId)) {
+                        current.splice(current.indexOf(widgetId), 1)
+                        console.log(`[RightSidebar] Removing ${widgetId}, new array:`, JSON.stringify(current))
+                        Config.setNestedValue("sidebar.right.enabledWidgets", current)
+                    } else {
+                        console.log(`[RightSidebar] No change needed`)
+                    }
+                }
+
+                SettingsSwitch {
+                    buttonIcon: "calendar_month"
+                    text: Translation.tr("Calendar")
+                    Component.onCompleted: checked = rightSidebarWidgets.isEnabled("calendar")
+                    Connections {
+                        target: Config
+                        function onConfigChanged() {
+                            checked = rightSidebarWidgets.isEnabled("calendar")
+                        }
+                    }
+                    onClicked: {
+                        // checked ya fue invertido por ConfigSwitch.onClicked
+                        rightSidebarWidgets.setWidget("calendar", checked)
+                    }
+                }
+                
+                SettingsSwitch {
+                    buttonIcon: "done_outline"
+                    text: Translation.tr("To Do")
+                    Component.onCompleted: checked = rightSidebarWidgets.isEnabled("todo")
+                    Connections {
+                        target: Config
+                        function onConfigChanged() {
+                            checked = rightSidebarWidgets.isEnabled("todo")
+                        }
+                    }
+                    onClicked: {
+                        rightSidebarWidgets.setWidget("todo", checked)
+                    }
+                }
+                
+                SettingsSwitch {
+                    buttonIcon: "edit_note"
+                    text: Translation.tr("Notepad")
+                    Component.onCompleted: checked = rightSidebarWidgets.isEnabled("notepad")
+                    Connections {
+                        target: Config
+                        function onConfigChanged() {
+                            checked = rightSidebarWidgets.isEnabled("notepad")
+                        }
+                    }
+                    onClicked: {
+                        rightSidebarWidgets.setWidget("notepad", checked)
+                    }
+                }
+
+                SettingsSwitch {
+                    buttonIcon: "calculate"
+                    text: Translation.tr("Calculator")
+                    Component.onCompleted: checked = rightSidebarWidgets.isEnabled("calculator")
+                    Connections {
+                        target: Config
+                        function onConfigChanged() {
+                            checked = rightSidebarWidgets.isEnabled("calculator")
+                        }
+                    }
+                    onClicked: {
+                        rightSidebarWidgets.setWidget("calculator", checked)
+                    }
+                }
+
+                SettingsSwitch {
+                    buttonIcon: "monitor_heart"
+                    text: Translation.tr("System Monitor")
+                    Component.onCompleted: checked = rightSidebarWidgets.isEnabled("sysmon")
+                    Connections {
+                        target: Config
+                        function onConfigChanged() {
+                            checked = rightSidebarWidgets.isEnabled("sysmon")
+                        }
+                    }
+                    onClicked: {
+                        rightSidebarWidgets.setWidget("sysmon", checked)
+                    }
+                }
+
+                SettingsSwitch {
+                    buttonIcon: "schedule"
+                    text: Translation.tr("Timer")
+                    Component.onCompleted: checked = rightSidebarWidgets.isEnabled("timer")
+                    Connections {
+                        target: Config
+                        function onConfigChanged() {
+                            checked = rightSidebarWidgets.isEnabled("timer")
+                        }
+                    }
+                    onClicked: {
+                        rightSidebarWidgets.setWidget("timer", checked)
+                    }
+                }
+            }
             ContentSubsection {
                 title: Translation.tr("Reddit")
                 visible: Config.options.sidebar?.reddit?.enable ?? false
@@ -1175,6 +1368,48 @@ ContentPage {
                     onCheckedChanged: Config.setNestedValue("sidebar.animeSchedule.showNsfw", checked)
                     StyledToolTip {
                         text: Translation.tr("Include adult-rated anime in results")
+                    }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+
+                    MaterialSymbol {
+                        text: "play_circle"
+                        iconSize: Appearance.font.pixelSize.larger
+                        color: Appearance.colors.colOnLayer1
+                    }
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+
+                        StyledText {
+                            text: Translation.tr("Watch site")
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: Appearance.colors.colOnLayer1
+                        }
+
+                        TextField {
+                            Layout.fillWidth: true
+                            placeholderText: "https://hianime.to/search?keyword=%s"
+                            text: Config.options.sidebar?.animeSchedule?.watchSite ?? ""
+                            font.pixelSize: Appearance.font.pixelSize.smaller
+                            color: Appearance.m3colors.m3onSurface
+                            placeholderTextColor: Appearance.colors.colSubtext
+                            background: Rectangle {
+                                color: Appearance.colors.colLayer1
+                                radius: Appearance.rounding.small
+                                border.width: parent.activeFocus ? 2 : 1
+                                border.color: parent.activeFocus ? Appearance.colors.colPrimary : Appearance.colors.colLayer0Border
+                            }
+                            onTextEdited: Config.setNestedValue("sidebar.animeSchedule.watchSite", text)
+
+                            StyledToolTip {
+                                text: Translation.tr("Custom streaming site URL. Use %s for search query.")
+                            }
+                        }
                     }
                 }
             }
@@ -2112,6 +2347,19 @@ ContentPage {
                 }
                 StyledToolTip {
                     text: Translation.tr("Center app icons in the launcher grid")
+                }
+            }
+            SettingsSwitch {
+                buttonIcon: "preview"
+                text: Translation.tr("Show window previews")
+                checked: Config.options?.overview?.showPreviews !== false
+                onCheckedChanged: {
+                    if (!Config.options.overview)
+                        Config.options.overview = ({})
+                    Config.options.overview.showPreviews = checked;
+                }
+                StyledToolTip {
+                    text: Translation.tr("Display thumbnail previews of windows in the overview")
                 }
             }
             ConfigSpinBox {

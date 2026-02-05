@@ -164,6 +164,40 @@ Item {
                         }
                     }
                 }
+                
+                // Widget Management Button
+                RippleButton {
+                    id: settingsBtn
+                    implicitWidth: 36
+                    implicitHeight: 36
+                    buttonRadius: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.full
+                    colBackground: "transparent"
+                    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover 
+                        : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface : Appearance.colors.colLayer1Hover
+                    colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer1Active 
+                        : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceActive : Appearance.colors.colLayer1Active
+                    
+                    onClicked: {
+                        const isWaffle = (Config.options?.panelFamily === "waffle" && Config.options?.waffles?.settings?.useMaterialStyle !== true);
+                        const settingsPath = isWaffle ? Quickshell.shellPath("waffleSettings.qml") : Quickshell.shellPath("settings.qml");
+                        const pageIndex = isWaffle ? 6 : 5; // Modules (Waffle) vs Interface (ii)
+                        const section = isWaffle ? Translation.tr("Widgets Panel") : Translation.tr("Media player");
+                        
+                        Quickshell.execDetached(["/usr/bin/env", "QS_SETTINGS_PAGE=" + pageIndex, "QS_SETTINGS_SECTION=" + section, "/usr/bin/qs", "-n", "-p", settingsPath]);
+                    }
+
+                    contentItem: Item {
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            text: "tune" // or 'widgets'
+                            iconSize: 18
+                            fill: 0
+                            color: Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer0
+                        }
+                    }
+
+                    StyledToolTip { text: Translation.tr("Manage Widgets") }
+                }
             }
         }
 

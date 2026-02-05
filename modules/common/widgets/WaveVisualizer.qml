@@ -11,7 +11,9 @@ Canvas { // Visualizer
     property real maxVisualizerValue: 1000
     property int smoothing: 2
     property bool live: true
-    property color color: Appearance.m3colors.m3primary
+    property color color: Appearance.inirEverywhere ? Appearance.inir.colPrimary
+                        : Appearance.auroraEverywhere ? Appearance.m3colors.m3primary
+                        : Appearance.colors.colPrimary
 
     onPointsChanged: () => {
         root.requestPaint()
@@ -47,7 +49,7 @@ Canvas { // Visualizer
         ctx.moveTo(0, h);
         for (var i = 0; i < n; ++i) {
             var x = i * w / (n - 1);
-            var y = h - (root.smoothPoints[i] / maxVal) * h;
+            var y = h - (root.smoothPoints[i] / maxVal) * h * 0.9;
             ctx.lineTo(x, y);
         }
         ctx.lineTo(w, h);

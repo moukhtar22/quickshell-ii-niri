@@ -307,6 +307,14 @@ ApplicationWindow {
         {
             pageIndex: 5,
             pageName: pages[5].name,
+            section: Translation.tr("Dock"),
+            label: Translation.tr("Window preview"),
+            description: Translation.tr("Show window preview on hover"),
+            keywords: ["dock", "preview", "hover", "window", "thumbnail"]
+        },
+        {
+            pageIndex: 5,
+            pageName: pages[5].name,
             section: Translation.tr("Lock screen"),
             label: Translation.tr("Lock screen"),
             description: Translation.tr("Lock screen behaviour and style"),
@@ -351,6 +359,14 @@ ApplicationWindow {
             label: Translation.tr("Overview"),
             description: Translation.tr("Overview scale, rows and columns"),
             keywords: ["overview", "grid", "rows", "columns"]
+        },
+        {
+            pageIndex: 5,
+            pageName: pages[5].name,
+            section: Translation.tr("Overview"),
+            label: Translation.tr("Window previews"),
+            description: Translation.tr("Show window thumbnails in overview"),
+            keywords: ["overview", "preview", "window", "thumbnail"]
         },
         {
             pageIndex: 5,
@@ -827,6 +843,16 @@ ApplicationWindow {
 
     Component.onCompleted: {
         Config.readWriteDelay = 0 // Settings app always only sets one var at a time so delay isn't needed
+        
+        const startPage = Quickshell.env("QS_SETTINGS_PAGE");
+        if (startPage) root.currentPage = parseInt(startPage);
+
+        const startSection = Quickshell.env("QS_SETTINGS_SECTION");
+        if (startSection) {
+            root.pendingSpotlightSection = startSection;
+            root.pendingSpotlightPageIndex = root.currentPage;
+            root.trySpotlight();
+        }
     }
 
     // Apply theme when Config is ready

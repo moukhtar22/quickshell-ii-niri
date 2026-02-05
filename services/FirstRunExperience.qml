@@ -4,10 +4,11 @@ import qs.modules.common
 import qs.modules.common.functions
 import Quickshell
 import Quickshell.Io
+import QtQuick
 
 Singleton {
     id: root
-    property string firstRunFilePath: `${Directories.state}/user/first_run.txt`
+    property string firstRunFilePath: FileUtils.trimFileProtocol(`${Directories.state}/user/first_run.txt`)
     property string firstRunFileContent: "This file is just here to confirm you've been greeted :>"
     property string firstRunNotifSummary: "Welcome!"
     property string firstRunNotifBody: "Hit Super+/ for a list of keybinds"
@@ -15,14 +16,14 @@ Singleton {
     property string welcomeQmlPath: FileUtils.trimFileProtocol(Quickshell.shellPath("welcome.qml"))
 
     function load() {
-        firstRunFileView.reload()
+        checkFirstRunProc.running = true
     }
 
     function enableNextTime() {
         Quickshell.execDetached(["/usr/bin/rm", "-f", root.firstRunFilePath])
     }
     function disableNextTime() {
-        firstRunFileView.setText(root.firstRunFileContent)
+        Quickshell.execDetached(["/bin/sh", "-c", `echo "${root.firstRunFileContent}" > "${root.firstRunFilePath}"`])
     }
 
     function handleFirstRun(): void {
@@ -30,14 +31,18 @@ Singleton {
         Quickshell.execDetached(["/usr/bin/qs", "-p", root.welcomeQmlPath])
     }
 
-    FileView {
-        id: firstRunFileView
-        path: Qt.resolvedUrl(firstRunFilePath)
-        onLoadFailed: (error) => {
-            if (error == FileViewError.FileNotFound) {
-                firstRunFileView.setText(root.firstRunFileContent)
+    Process {
+        id: checkFirstRunProc
+        command: ["/usr/bin/test", "-f", root.firstRunFilePath]
+        onExited: (exitCode) => {
+            if (exitCode !== 0) {
+                // File doesn't exist, create it and run setup
+                const parentDir = root.firstRunFilePath.substring(0, root.firstRunFilePath.lastIndexOf('/'))
+                Quickshell.execDetached(["/bin/sh", "-c", `mkdir -p "${parentDir}" && echo "${root.firstRunFileContent}" > "${root.firstRunFilePath}"`])
                 root.handleFirstRun()
             }
         }
     }
+
+    Component.onCompleted: checkFirstRunProc.running = true
 }

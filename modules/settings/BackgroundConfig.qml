@@ -235,6 +235,19 @@ ContentPage {
 
                 SettingsSwitch {
                     visible: Config.options.background.backdrop.enable
+                    buttonIcon: "play_circle"
+                    text: Translation.tr("Enable animated wallpapers (videos/GIFs)")
+                    checked: Config.options.background.backdrop.enableAnimation
+                    onCheckedChanged: {
+                        Config.options.background.backdrop.enableAnimation = checked;
+                    }
+                    StyledToolTip {
+                        text: Translation.tr("Play videos and GIFs in backdrop (may impact performance)")
+                    }
+                }
+
+                SettingsSwitch {
+                    visible: Config.options.background.backdrop.enable
                     buttonIcon: "blur_on"
                     text: Translation.tr("Aurora glass effect")
                     checked: Config.options.background.backdrop.useAuroraStyle
@@ -942,6 +955,44 @@ ContentPage {
                             icon: "shapes",
                             value: "mostBusy"
                         },
+                    ]
+                }
+            }
+            
+            ContentSubsectionLabel {
+                text: Translation.tr("Player Style")
+            }
+            
+            ConfigRow {
+                Layout.fillWidth: true
+                
+                ConfigSelectionArray {
+                    Layout.fillWidth: true
+                    currentValue: Config.options.background.widgets.mediaControls.playerPreset
+                    onSelected: newValue => {
+                        Config.options.background.widgets.mediaControls.playerPreset = newValue;
+                    }
+                    options: [
+                        {
+                            displayName: Translation.tr("Full"),
+                            icon: "featured_video",
+                            value: "full"
+                        },
+                        {
+                            displayName: Translation.tr("Compact"),
+                            icon: "view_compact",
+                            value: "compact"
+                        },
+                        {
+                            displayName: Translation.tr("Album Art"),
+                            icon: "image",
+                            value: "albumart"
+                        },
+                        {
+                            displayName: Translation.tr("Classic"),
+                            icon: "radio",
+                            value: "classic"
+                        }
                     ]
                 }
             }

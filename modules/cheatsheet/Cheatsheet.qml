@@ -116,7 +116,12 @@ Scope {
             Image {
                 id: wallpaperSource
                 anchors.fill: parent
-                source: Config.options?.background?.wallpaperPath ?? ""
+                source: {
+                    const wpPath = Config.options?.background?.wallpaperPath ?? "";
+                    // For videos, use thumbnail path instead
+                    const isVideo = wpPath.endsWith(".mp4") || wpPath.endsWith(".webm") || wpPath.endsWith(".mkv") || wpPath.endsWith(".avi") || wpPath.endsWith(".mov");
+                    return isVideo ? (Config.options?.background?.thumbnailPath ?? wpPath) : wpPath;
+                }
                 fillMode: Image.PreserveAspectCrop
                 visible: false // Hidden, only used as source for blur
                 cache: true

@@ -1,13 +1,17 @@
 pragma ComponentBehavior: Bound
 
 import qs
+import qs.services
 import qs.modules.common
-import qs.modules.common.functions
 import qs.modules.common.widgets
+import qs.modules.common.functions as CF
 import qs.modules.common.models
 import QtQuick
 import QtQuick.Effects
+import QtMultimedia
+import Qt5Compat.GraphicalEffects as GE
 import Quickshell
+import Quickshell.Io
 import Quickshell.Wayland
 
 Variants {
@@ -35,6 +39,7 @@ Variants {
         readonly property var iiBackdrop: Config.options?.background?.backdrop ?? {}
         
         readonly property int backdropBlurRadius: iiBackdrop.blurRadius ?? 32
+        readonly property int videoBlurStrength: Config.options?.background?.effects?.videoBlurStrength ?? 50
         readonly property int backdropDim: iiBackdrop.dim ?? 35
         readonly property real backdropSaturation: iiBackdrop.saturation ?? 0
         readonly property real backdropContrast: iiBackdrop.contrast ?? 0
@@ -43,12 +48,42 @@ Variants {
         readonly property real vignetteRadius: iiBackdrop.vignetteRadius ?? 0.7
         readonly property bool useAuroraStyle: iiBackdrop.useAuroraStyle ?? false
         readonly property real auroraOverlayOpacity: iiBackdrop.auroraOverlayOpacity ?? 0.38
+        readonly property bool enableAnimation: iiBackdrop.enableAnimation ?? false
 
-        readonly property string effectiveWallpaperPath: {
+        // Raw wallpaper path (before thumbnail substitution)
+        readonly property string wallpaperPathRaw: {
             const useMain = iiBackdrop.useMainWallpaper ?? true;
             const mainPath = Config.options?.background?.wallpaperPath ?? "";
             const backdropPath = iiBackdrop.wallpaperPath || "";
             return useMain ? mainPath : (backdropPath || mainPath);
+        }
+        
+        readonly property bool wallpaperIsVideo: {
+            const lowerPath = wallpaperPathRaw.toLowerCase();
+            return lowerPath.endsWith(".mp4") || lowerPath.endsWith(".webm") || lowerPath.endsWith(".mkv") || lowerPath.endsWith(".avi") || lowerPath.endsWith(".mov");
+        }
+        
+        readonly property bool wallpaperIsGif: {
+            return wallpaperPathRaw.toLowerCase().endsWith(".gif");
+        }
+
+        // Effective path: returns thumbnail if animation is disabled, otherwise raw path
+        readonly property string effectiveWallpaperPath: {
+            const selectedPath = wallpaperPathRaw;
+            
+            // If animation is enabled, use raw path for videos/GIFs
+            if (backdropWindow.enableAnimation && (backdropWindow.wallpaperIsVideo || backdropWindow.wallpaperIsGif)) {
+                return selectedPath;
+            }
+            
+            // If animation is disabled, use thumbnail for videos/GIFs
+            if (backdropWindow.wallpaperIsVideo || backdropWindow.wallpaperIsGif) {
+                const backdropThumbnail = iiBackdrop.thumbnailPath ?? "";
+                const mainThumbnail = Config.options?.background?.thumbnailPath ?? "";
+                return backdropThumbnail || mainThumbnail || selectedPath;
+            }
+            
+            return selectedPath;
         }
 
         // Color quantizer for aurora-style adaptive colors
@@ -65,33 +100,92 @@ Variants {
 
         readonly property color wallpaperDominantColor: (backdropColorQuantizer?.colors?.[0] ?? Appearance.colors.colPrimary)
         readonly property QtObject blendedColors: AdaptedMaterialScheme {
-            color: ColorUtils.mix(backdropWindow.wallpaperDominantColor, Appearance.colors.colPrimaryContainer, 0.8) || Appearance.m3colors.m3secondaryContainer
+            color: CF.ColorUtils.mix(backdropWindow.wallpaperDominantColor, Appearance.colors.colPrimaryContainer, 0.8) || Appearance.m3colors.m3secondaryContainer
         }
 
         Item {
             anchors.fill: parent
 
+            // Static Image (for non-animated wallpapers)
             Image {
                 id: wallpaper
                 anchors.fill: parent
                 fillMode: Image.PreserveAspectCrop
-                source: backdropWindow.effectiveWallpaperPath 
+                source: backdropWindow.effectiveWallpaperPath && !backdropWindow.wallpaperIsGif && !(backdropWindow.enableAnimation && backdropWindow.wallpaperIsVideo)
                     ? (backdropWindow.effectiveWallpaperPath.startsWith("file://") 
                         ? backdropWindow.effectiveWallpaperPath 
                         : "file://" + backdropWindow.effectiveWallpaperPath)
                     : ""
                 asynchronous: true
                 cache: true
-                visible: !backdropWindow.useAuroraStyle
+                smooth: true
+                mipmap: true
+                visible: !backdropWindow.useAuroraStyle && !backdropWindow.wallpaperIsGif && !(backdropWindow.enableAnimation && backdropWindow.wallpaperIsVideo)
 
-                layer.enabled: Appearance.effectsEnabled && backdropWindow.backdropBlurRadius > 0 && !backdropWindow.useAuroraStyle
+                layer.enabled: Appearance.effectsEnabled && backdropWindow.backdropBlurRadius > 0 && !backdropWindow.useAuroraStyle && !backdropWindow.wallpaperIsGif
                 layer.effect: MultiEffect {
                     blurEnabled: true
-                    blur: backdropWindow.backdropBlurRadius / 100.0
+                    // For videos (when using thumbnails), apply videoBlurStrength
+                    blur: backdropWindow.wallpaperIsVideo
+                        ? (backdropWindow.backdropBlurRadius * Math.max(0, Math.min(1, backdropWindow.videoBlurStrength / 100))) / 100.0
+                        : backdropWindow.backdropBlurRadius / 100.0
                     blurMax: 64
                     saturation: backdropWindow.backdropSaturation
                     contrast: backdropWindow.backdropContrast
                 }
+            }
+            
+            // Animated GIF support (when enableAnimation is true)
+            AnimatedImage {
+                id: gifWallpaper
+                anchors.fill: parent
+                fillMode: Image.PreserveAspectCrop
+                source: backdropWindow.enableAnimation && backdropWindow.wallpaperIsGif && backdropWindow.effectiveWallpaperPath
+                    ? (backdropWindow.effectiveWallpaperPath.startsWith("file://") 
+                        ? backdropWindow.effectiveWallpaperPath 
+                        : "file://" + backdropWindow.effectiveWallpaperPath)
+                    : ""
+                asynchronous: true
+                cache: true
+                smooth: true
+                mipmap: true
+                visible: !backdropWindow.useAuroraStyle && backdropWindow.enableAnimation && backdropWindow.wallpaperIsGif
+                playing: visible
+                
+                // Note: Blur is disabled for GIFs to maintain performance
+            }
+
+            // Video wallpaper support (when enableAnimation is true)
+            Video {
+                id: videoWallpaper
+                anchors.fill: parent
+                visible: !backdropWindow.useAuroraStyle && backdropWindow.enableAnimation && backdropWindow.wallpaperIsVideo
+                source: {
+                    if (!backdropWindow.enableAnimation || !backdropWindow.wallpaperIsVideo) return "";
+                    const path = backdropWindow.effectiveWallpaperPath;
+                    if (!path) return "";
+                    return path.startsWith("file://") ? path : ("file://" + path);
+                }
+                fillMode: VideoOutput.PreserveAspectCrop
+                loops: MediaPlayer.Infinite
+                muted: true
+                autoPlay: true
+                
+                onPlaybackStateChanged: {
+                    if (playbackState === MediaPlayer.StoppedState && visible && backdropWindow.enableAnimation && backdropWindow.wallpaperIsVideo) {
+                        play()
+                    }
+                }
+                
+                onVisibleChanged: {
+                    if (visible && backdropWindow.enableAnimation && backdropWindow.wallpaperIsVideo) {
+                        play()
+                    } else {
+                        pause()
+                    }
+                }
+                
+                // Note: Blur is disabled for videos to maintain performance
             }
 
             // Aurora-style blur (same as sidebars)
@@ -99,14 +193,56 @@ Variants {
                 id: auroraWallpaper
                 anchors.fill: parent
                 fillMode: Image.PreserveAspectCrop
-                source: wallpaper.source
+                source: backdropWindow.wallpaperIsGif ? gifWallpaper.source : wallpaper.source
                 asynchronous: true
                 cache: true
-                visible: backdropWindow.useAuroraStyle && status === Image.Ready
+                smooth: true
+                mipmap: true
+                visible: backdropWindow.useAuroraStyle && status === Image.Ready && !backdropWindow.wallpaperIsGif && !(backdropWindow.enableAnimation && backdropWindow.wallpaperIsVideo)
 
                 layer.enabled: Appearance.effectsEnabled
                 layer.effect: StyledBlurEffect {
                     source: auroraWallpaper
+                }
+            }
+            
+            // Aurora-style for GIFs (without blur to maintain performance)
+            AnimatedImage {
+                id: auroraGifWallpaper
+                anchors.fill: parent
+                fillMode: Image.PreserveAspectCrop
+                source: backdropWindow.enableAnimation && backdropWindow.wallpaperIsGif ? gifWallpaper.source : ""
+                asynchronous: true
+                cache: true
+                smooth: true
+                mipmap: true
+                visible: backdropWindow.useAuroraStyle && backdropWindow.enableAnimation && backdropWindow.wallpaperIsGif
+                playing: visible
+            }
+
+            // Aurora-style for Videos (without blur to maintain performance)
+            Video {
+                id: auroraVideoWallpaper
+                anchors.fill: parent
+                visible: backdropWindow.useAuroraStyle && backdropWindow.enableAnimation && backdropWindow.wallpaperIsVideo
+                source: videoWallpaper.source
+                fillMode: VideoOutput.PreserveAspectCrop
+                loops: MediaPlayer.Infinite
+                muted: true
+                autoPlay: true
+                
+                onPlaybackStateChanged: {
+                    if (playbackState === MediaPlayer.StoppedState && visible && backdropWindow.enableAnimation && backdropWindow.wallpaperIsVideo) {
+                        play()
+                    }
+                }
+                
+                onVisibleChanged: {
+                    if (visible && backdropWindow.enableAnimation && backdropWindow.wallpaperIsVideo) {
+                        play()
+                    } else {
+                        pause()
+                    }
                 }
             }
 
@@ -114,7 +250,7 @@ Variants {
             Rectangle {
                 anchors.fill: parent
                 visible: backdropWindow.useAuroraStyle
-                color: ColorUtils.transparentize(
+                color: CF.ColorUtils.transparentize(
                     (backdropWindow.blendedColors?.colLayer0 ?? Appearance.colors.colLayer0Base), 
                     backdropWindow.auroraOverlayOpacity
                 )

@@ -9,6 +9,7 @@ import Qt.labs.folderlistmodel
 import Quickshell
 import Quickshell.Io
 import "root:"
+import "root:modules/common/functions/md5.js" as MD5
 
 Singleton {
     id: root
@@ -21,33 +22,41 @@ Singleton {
 
     readonly property string effectiveWallpaperPath: {
         function isVideoFile(path: string): bool {
-            return path.endsWith(".mp4") || path.endsWith(".webm") || path.endsWith(".mkv") || path.endsWith(".avi") || path.endsWith(".mov")
+            if (!path) return false
+            const lowerPath = path.toLowerCase()
+            return lowerPath.endsWith(".mp4") || lowerPath.endsWith(".webm") || lowerPath.endsWith(".mkv") || lowerPath.endsWith(".avi") || lowerPath.endsWith(".mov")
+        }
+        function getSafeWallpaperPath(path: string): string {
+            if (!path) return ""
+            return isVideoFile(path) ? (Config.options?.background?.thumbnailPath ?? path) : path
         }
         if (useBackdropWallpaper) {
             if (isWaffleFamily) {
                 const wBackdrop = Config.options?.waffles?.background?.backdrop ?? {}
                 const useBackdropOwn = !(wBackdrop.useMainWallpaper ?? true)
-                if (useBackdropOwn && wBackdrop.wallpaperPath) return wBackdrop.wallpaperPath
+                if (useBackdropOwn && wBackdrop.wallpaperPath) return getSafeWallpaperPath(wBackdrop.wallpaperPath)
                 const wBg = Config.options?.waffles?.background ?? {}
                 const useMainForWaffle = wBg.useMainWallpaper ?? true
-                return useMainForWaffle ? (Config.options?.background?.wallpaperPath ?? "") : (wBg.wallpaperPath || (Config.options?.background?.wallpaperPath ?? ""))
+                const selectedPath = useMainForWaffle ? (Config.options?.background?.wallpaperPath ?? "") : (wBg.wallpaperPath || (Config.options?.background?.wallpaperPath ?? ""))
+                return getSafeWallpaperPath(selectedPath)
             }
             const iiBackdrop = Config.options?.background?.backdrop ?? {}
             const useMain = iiBackdrop.useMainWallpaper ?? true
             const mainPath = Config.options?.background?.wallpaperPath ?? ""
-            return useMain ? mainPath : (iiBackdrop.wallpaperPath || mainPath)
+            const selectedPath = useMain ? mainPath : (iiBackdrop.wallpaperPath || mainPath)
+            return getSafeWallpaperPath(selectedPath)
         }
         if (isWaffleFamily) {
             const wBg = Config.options?.waffles?.background ?? {}
             const useMain = wBg.useMainWallpaper ?? true
             if (useMain) {
                 const mainWp = Config.options?.background?.wallpaperPath ?? ""
-                return isVideoFile(mainWp) ? (Config.options?.background?.thumbnailPath ?? mainWp) : mainWp
+                return getSafeWallpaperPath(mainWp)
             }
-            return wBg.wallpaperPath || (Config.options?.background?.wallpaperPath ?? "")
+            return getSafeWallpaperPath(wBg.wallpaperPath || (Config.options?.background?.wallpaperPath ?? ""))
         }
         const mainWp = Config.options?.background?.wallpaperPath ?? ""
-        return isVideoFile(mainWp) ? (Config.options?.background?.thumbnailPath ?? mainWp) : mainWp
+        return getSafeWallpaperPath(mainWp)
     }
 
     readonly property string effectiveWallpaperUrl: {
@@ -58,6 +67,33 @@ Singleton {
 
     property string thumbgenScriptPath: `${FileUtils.trimFileProtocol(Directories.scriptPath)}/thumbnails/thumbgen-venv.sh`
     property string generateThumbnailsMagickScriptPath: `${FileUtils.trimFileProtocol(Directories.scriptPath)}/thumbnails/generate-thumbnails-magick.sh`
+    
+    // Calculate standard Freedesktop thumbnail path
+    // size: "normal" (128), "large" (256), "x-large" (512), "xx-large" (1024)
+    function getExpectedThumbnailPath(filePath: string, size = "large"): string {
+        if (!filePath) return ""
+        // Ensure path is absolute and clean
+        let cleanPath = FileUtils.trimFileProtocol(filePath)
+        if (!cleanPath.startsWith("/")) cleanPath = Quickshell.env("PWD") + "/" + cleanPath
+        
+        // Encode URI path segments (similar to python urllib.parse.quote(p, safe=""))
+        // JS encodeURIComponent encodes everything except A-Za-z0-9-_.!~*'()
+        // We need to match Python's behavior for strict path encoding
+        const parts = cleanPath.split("/")
+        const encodedParts = parts.map(p => {
+            // Manual encoding for characters that encodeURIComponent misses or handles differently if needed
+            // But standard encodeURIComponent is usually close enough for file paths
+            return encodeURIComponent(p).replace(/[!'()*]/g, function(c) {
+                return '%' + c.charCodeAt(0).toString(16);
+            });
+        })
+        const url = "file://" + encodedParts.join("/")
+        
+        const md5Hash = MD5.hash(url)
+        const cacheDir = Quickshell.env("HOME") + "/.cache/thumbnails/" + size
+        return cacheDir + "/" + md5Hash + ".png"
+    }
+
     property alias directory: folderModel.folder
     readonly property string effectiveDirectory: FileUtils.trimFileProtocol(folderModel.folder.toString())
     property url defaultFolder: Qt.resolvedUrl(`${Directories.pictures}/Wallpapers`)
@@ -203,7 +239,7 @@ Singleton {
             if (thumbgenProc.running) return
             thumbgenProc.directory = root._pendingThumbnailDir
             thumbgenProc._size = root._pendingThumbnailSize
-            thumbgenProc.command = [thumbgenScriptPath, "--size", root._pendingThumbnailSize, "--machine_progress", "--only_images", "-d", root._pendingThumbnailDir]
+            thumbgenProc.command = [thumbgenScriptPath, "--size", root._pendingThumbnailSize, "--machine_progress", "-d", root._pendingThumbnailDir]
             root.thumbnailGenerationProgress = 0
             thumbgenProc.running = true
         }

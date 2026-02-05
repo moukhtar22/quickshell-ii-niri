@@ -17,59 +17,100 @@ VERIFICATION_TIMEOUT=10
 #####################################################################################
 
 # Generate manifest of all files that should exist in the installation
+# v2 format includes checksums for code files to detect user modifications
 generate_manifest() {
     local repo_root="$1"
     local manifest_file="$2"
-    
+    local commit
+    commit=$(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+
+    # Extensions that get checksums (code files users might modify)
+    local checksum_extensions="qml|js|py|sh|fish"
+
     {
-        # Root QML files
-        find "$repo_root" -maxdepth 1 -name "*.qml" -type f -printf "%f\n" 2>/dev/null | sort
-        
+        # Header (will be prepended after sort)
+        # Actual file entries follow
+
+        # Root QML files (with checksums)
+        for qml in "$repo_root"/*.qml; do
+            [[ -f "$qml" ]] || continue
+            local name
+            name=$(basename "$qml")
+            local checksum
+            checksum=$(sha256sum "$qml" 2>/dev/null | cut -d' ' -f1)
+            echo "${name}:${checksum}"
+        done
+
         # Directories that get synced
         for dir in modules services scripts assets translations; do
             if [[ -d "$repo_root/$dir" ]]; then
-                find "$repo_root/$dir" -type f -printf "$dir/%P\n" 2>/dev/null
+                find "$repo_root/$dir" -type f 2>/dev/null | while read -r file; do
+                    local rel_path="${file#$repo_root/}"
+                    local ext="${file##*.}"
+
+                    # Check if file extension needs checksum
+                    if [[ "$ext" =~ ^($checksum_extensions)$ ]]; then
+                        local checksum
+                        checksum=$(sha256sum "$file" 2>/dev/null | cut -d' ' -f1)
+                        echo "${rel_path}:${checksum}"
+                    else
+                        # Non-code files: just path (for orphan detection)
+                        echo "${rel_path}:"
+                    fi
+                done
             fi
         done
-        
+
         # Other tracked files
-        [[ -f "$repo_root/requirements.txt" ]] && echo "requirements.txt"
-        
-    } | sort -u > "$manifest_file"
+        [[ -f "$repo_root/requirements.txt" ]] && echo "requirements.txt:"
+
+    } | sort -t: -k1 | {
+        # Prepend header
+        echo "# ii-manifest v2"
+        echo "# generated: $(date -Iseconds)"
+        echo "# commit: $commit"
+        cat
+    } > "$manifest_file"
 }
 
 # Get list of files that exist in target but not in manifest (orphans)
+# Handles both v1 (path only) and v2 (path:checksum) manifest formats
 get_orphan_files() {
     local target_dir="$1"
     local manifest_file="$2"
-    
+
     if [[ ! -f "$manifest_file" ]]; then
         return 0
     fi
-    
+
     # Get current files in target (excluding hidden, backups, and non-tracked dirs)
     local current_files
     current_files=$(mktemp)
-    
+
     {
         # Root QML files
         find "$target_dir" -maxdepth 1 -name "*.qml" -type f -printf "%f\n" 2>/dev/null
-        
+
         # Tracked directories
         for dir in modules services scripts assets translations; do
             if [[ -d "$target_dir/$dir" ]]; then
                 find "$target_dir/$dir" -type f -printf "$dir/%P\n" 2>/dev/null
             fi
         done
-        
+
         [[ -f "$target_dir/requirements.txt" ]] && echo "requirements.txt"
-        
+
     } | sort -u > "$current_files"
-    
+
+    # Extract just paths from manifest (handles both v1 and v2 formats)
+    local manifest_paths
+    manifest_paths=$(mktemp)
+    grep -v "^#" "$manifest_file" | cut -d: -f1 | sort -u > "$manifest_paths"
+
     # Find files in current but not in manifest
-    comm -23 "$current_files" "$manifest_file"
-    
-    rm -f "$current_files"
+    comm -23 "$current_files" "$manifest_paths"
+
+    rm -f "$current_files" "$manifest_paths"
 }
 
 #####################################################################################

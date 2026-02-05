@@ -91,6 +91,10 @@ Singleton {
         onLoaded: root.ready = true
         onLoadFailed: error => {
             if (error == FileViewError.FileNotFound) {
+                console.log("[Config] File not found, creating new file.")
+                // Ensure parent directory exists
+                const parentDir = root.filePath.substring(0, root.filePath.lastIndexOf('/'))
+                Process.exec(["/usr/bin/mkdir", "-p", parentDir])
                 writeAdapter();
             }
             // Set ready even on failure so UI doesn't stay blank
@@ -102,7 +106,7 @@ Singleton {
             
             // Panel system
             property list<string> enabledPanels: [
-                "iiBar", "iiBackground", "iiCheatsheet", "iiDock", "iiLock", "iiMediaControls", 
+                "iiBar", "iiBackground", "iiCheatsheet", "iiControlPanel", "iiDock", "iiLock", "iiMediaControls", 
                 "iiNotificationPopup", "iiOnScreenDisplay", "iiOnScreenKeyboard", "iiOverlay", 
                 "iiOverview", "iiPolkit", "iiRegionSelector", "iiScreenCorners", "iiSessionScreen", 
                 "iiSidebarLeft", "iiSidebarRight", "iiVerticalBar", "iiWallpaperSelector", "iiAltSwitcher", "iiClipboard"
@@ -137,7 +141,24 @@ Singleton {
             property JsonObject appearance: JsonObject {
                 property string theme: "auto" // Theme preset ID: "auto" for wallpaper-based, or preset name like "gruvbox-dark", "catppuccin-mocha", "custom", etc.
                 property string globalStyle: "material" // "material" | "cards" | "aurora" | "inir"
+                property list<string> recentThemes: []  // Last 4 used themes
+                property list<string> favoriteThemes: []  // User's favorite themes
+                property JsonObject themeSchedule: JsonObject {
+                    property bool enabled: false
+                    property string dayTheme: "auto"
+                    property string nightTheme: "auto"
+                    property string dayStart: "06:00"
+                    property string nightStart: "18:00"
+                }
+                // Corner style preference per global style (0=Hug, 1=Float, 2=Rect, 3=Card)
+                property JsonObject globalStyleCornerStyles: JsonObject {
+                    property int material: 1
+                    property int cards: 3
+                    property int aurora: 0
+                    property int inir: 1
+                }
                 property bool extraBackgroundTint: true
+                property bool softenColors: true
                 property JsonObject customTheme: JsonObject {
                     property bool darkmode: true
                     property string m3background: "#282828"
@@ -206,11 +227,24 @@ Singleton {
                     property bool enableQtApps: true
                     property bool enableTerminal: true
                     property bool enableVesktop: true
+                    property JsonObject terminals: JsonObject {
+                        property bool kitty: true
+                        property bool alacritty: true
+                        property bool foot: true
+                        property bool wezterm: true
+                        property bool ghostty: true
+                        property bool konsole: true
+                    }
                     property JsonObject terminalGenerationProps: JsonObject {
                         property real harmony: 0.6
                         property real harmonizeThreshold: 100
                         property real termFgBoost: 0.35
                         property bool forceDarkMode: false
+                    }
+                    property JsonObject terminalColorAdjustments: JsonObject {
+                        property real saturation: 0.40  // 0.0 - 1.0
+                        property real brightness: 0.55  // 0.0 - 1.0 (lightness for dark mode)
+                        property real harmony: 0.15     // 0.0 - 1.0 (how much to shift towards primary)
                     }
                 }
                 property JsonObject palette: JsonObject {
@@ -221,6 +255,7 @@ Singleton {
                     property string titleFont: "Gabarito"
                     property string monospaceFont: "JetBrainsMono Nerd Font"
                     property real sizeScale: 1.0
+                    property bool syncWithSystem: true // Sync fonts with GTK/KDE apps
                     property JsonObject variableAxes: JsonObject {
                         property int wght: 300
                         property int wdth: 105
@@ -354,6 +389,7 @@ Singleton {
                     property JsonObject mediaControls: JsonObject {
                         property bool enable: false
                         property string placementStrategy: "free" // "free", "leastBusy", "mostBusy"
+                        property string playerPreset: "full" // "full", "compact", "minimal", "albumart", "visualizer", "classic"
                         property real x: 240
                         property real y: 240
                     }
@@ -375,6 +411,8 @@ Singleton {
                     property bool hideWallpaper: false
                     property bool useMainWallpaper: true
                     property string wallpaperPath: ""
+                    property string thumbnailPath: "" // Thumbnail for animated wallpapers (video/gif)
+                    property bool enableAnimation: false // Enable animated wallpapers (video/gif) in backdrop (disabled by default for performance)
                     property int blurRadius: 32
                     property int dim: 35 // 0-100
                     property real saturation: 1.0
@@ -470,7 +508,8 @@ Singleton {
                     property bool showKeyboardToggle: true
                     property bool showDarkModeToggle: true
                     property bool showPerformanceProfileToggle: false
-                    property bool showScreenRecord: false
+                    property bool showScreenCast: false
+                    property string screenCastOutput: "HDMI-A-1"
                     property bool showNotepad: true
                 }
                 property JsonObject tray: JsonObject {
@@ -541,6 +580,7 @@ Singleton {
                 property bool showBackground: true
                 property bool minimizeUnfocused: false // Show dot for unfocused apps
                 property bool enableBlurGlass: true
+                property bool separatePinnedFromRunning: true // Waffle-style: pinned-only apps on left, running on right
                 property list<string> pinnedApps: [ // IDs of pinned entries
                     "org.kde.dolphin", "kitty",]
                 property list<string> ignoredAppRegexes: []
@@ -548,6 +588,9 @@ Singleton {
                 property bool smartIndicator: true // Show which window is focused
                 property bool showAllWindowDots: true // Show dots for all windows (even inactive apps)
                 property int maxIndicatorDots: 5 // Maximum dots to show
+                // Window preview on hover
+                property bool hoverPreview: true // Show window preview popup on hover
+                property int hoverPreviewDelay: 400 // Delay before showing preview (ms)
             }
 
             property JsonObject interactions: JsonObject {
@@ -605,6 +648,8 @@ Singleton {
             property JsonObject media: JsonObject {
                 // Attempt to remove dupes (the aggregator playerctl one and browsers' native ones when there's plasma browser integration)
                 property bool filterDuplicatePlayers: true
+                // Popup mode: "dock" (bottom overlay, default) or "bar" (anchored to bar widget)
+                property string popupMode: "dock"
             }
 
             property JsonObject networking: JsonObject {
@@ -675,12 +720,14 @@ Singleton {
                 property int scrollWorkspaceSteps: 2
                 property bool keepOverviewOpenOnWindowClick: true
                 property bool closeAfterWindowMove: true
+                property bool showPreviews: false // Show window thumbnails in overview
             }
 
             // Settings for the custom Alt-Tab switcher in ii
             property JsonObject altSwitcher: JsonObject {
                 // Preset style: "default" (sidebar) or "list" (centered list)
                 property string preset: "default"
+                property bool noVisualUi: false
                 // Whether to tint app icons (monochrome), similar to dock/workspaces
                 property bool monochromeIcons: false
                 // Enable/disable slide in/out animation
@@ -789,18 +836,48 @@ Singleton {
                     // Optional API key for NSFW & user-specific filters
                     property string apiKey: ""
                 }
-                // Anime Schedule tab - Jikan API (MyAnimeList)
+                // Anime Schedule tab - AniList API
                 property JsonObject animeSchedule: JsonObject {
-                    // Enable/disable the Anime Schedule tab
                     property bool enable: false
-                    // Filter out NSFW content
                     property bool showNsfw: false
+                    // Custom streaming site URL (use %s for search query placeholder)
+                    // Examples: "https://hianime.to/search?keyword=%s", "https://9animetv.to/search?keyword=%s"
+                    property string watchSite: ""
                 }
                 // Reddit tab - public JSON API
                 property JsonObject reddit: JsonObject {
                     property bool enable: false
                     property list<string> subreddits: ["unixporn", "linux", "archlinux", "kde", "gnome"]
                     property int limit: 25
+                }
+                // Tools tab - Niri debug options and quick actions
+                property JsonObject tools: JsonObject {
+                    property bool enable: false
+                }
+                // YT Music tab - Search and play YouTube music via yt-dlp
+                property JsonObject ytmusic: JsonObject {
+                    property bool enable: false
+                    property bool autoConnect: true
+                    property bool hideSyncBanner: false
+                    property string browser: "firefox"
+                    property string cookiesPath: ""
+                    property bool shuffleMode: false
+                    property int repeatMode: 0
+                    property list<string> recentSearches: []
+                    property list<var> queue: []
+                    property list<var> playlists: []
+                    property list<var> liked: []
+                    property string lastLikedSync: ""
+                    property JsonObject profile: JsonObject {
+                        property string name: ""
+                        property string avatar: ""
+                        property string url: ""
+                    }
+                    property JsonObject cache: JsonObject {
+                        property list<var> playlists: []
+                        property list<var> albums: []
+                        property list<var> liked: []
+                    }
                 }
                 // Widgets tab in left sidebar
                 property JsonObject widgets: JsonObject {
@@ -809,12 +886,12 @@ Singleton {
                     property bool media: true
                     property bool week: true
                     property bool context: true
-                    property bool note: true
-                    property bool launch: true
+                    property bool note: false
+                    property bool launch: false
                     property bool controls: true
                     property bool status: true
                     property bool crypto: false
-                    property bool wallpaper: false
+                    property bool wallpaper: true
                     // ContextCard specific
                     property bool contextShowWeather: true
                     // Widget order (drag to reorder)
@@ -903,6 +980,11 @@ Singleton {
                     property bool showVolume: true
                     property bool showBrightness: true
                 }
+
+                // Right sidebar widget toggles
+                property JsonObject right: JsonObject {
+                    property list<string> enabledWidgets: ["calendar", "todo", "notepad", "calculator", "sysmon", "timer"]
+                }
             }
 
             property JsonObject sounds: JsonObject {
@@ -911,6 +993,7 @@ Singleton {
                 property bool pomodoro: false
                 property string theme: "freedesktop"
                 property bool notifications: false
+                property real volume: 0.5
             }
 
             property JsonObject time: JsonObject {
@@ -957,6 +1040,11 @@ Singleton {
                 property int adviseUpdateThreshold: 75
                 property int stronglyAdviseUpdateThreshold: 200
             }
+            property JsonObject welcomeWizard: JsonObject {
+                property bool completed: false
+                property bool skipped: false
+            }
+
             property JsonObject waffles: JsonObject {
                 property JsonObject modules: JsonObject {
                     property bool sidebarLeft: false
@@ -971,6 +1059,7 @@ Singleton {
                 }
                 property JsonObject altSwitcher: JsonObject {
                     property string preset: "thumbnails"
+                    property bool noVisualUi: false
                     property bool autoHide: true
                     property int autoHideDelayMs: 500
                     property bool closeOnFocus: true
@@ -982,6 +1071,7 @@ Singleton {
                 }
                 property JsonObject background: JsonObject {
                     property string wallpaperPath: "" // Empty = use main wallpaper
+                    property string thumbnailPath: "" // Thumbnail for animated wallpapers (video/gif)
                     property bool useMainWallpaper: true
                     property JsonObject effects: JsonObject {
                         property bool enableBlur: false
@@ -995,6 +1085,8 @@ Singleton {
                         property bool hideWallpaper: false
                         property bool useMainWallpaper: true
                         property string wallpaperPath: ""
+                        property string thumbnailPath: "" // Thumbnail for animated wallpapers (video/gif)
+                        property bool enableAnimation: false // Enable animated wallpapers (video/gif) in backdrop (disabled by default for performance)
                         property int blurRadius: 32
                         property int dim: 35
                         property real saturation: 1.0

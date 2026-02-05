@@ -55,7 +55,7 @@ Item {
         if (!columnMode) return []
         const currentWs = NiriService.currentOutputWorkspaces?.find(w => w.is_active)
         if (!currentWs) return []
-        return NiriService.windows.filter(w => w.workspace_id === currentWs.id)
+        return NiriService.windows?.filter(w => w.workspace_id === currentWs.id) ?? []
     }
     readonly property int currentWindowIndex: {
         if (!columnMode) return -1
@@ -350,12 +350,12 @@ Item {
                     implicitWidth: workspaceButtonWidth
                     implicitHeight: workspaceButtonWidth
                     readonly property var niriWorkspace: CompositorService.isNiri 
-                        ? NiriService.allWorkspaces.find(w => w.idx === button.workspaceValue) 
+                        ? NiriService.allWorkspaces?.find(w => w.idx === button.workspaceValue) ?? null
                         : null
                     property var biggestWindow: {
                         if (CompositorService.isNiri) {
                             if (!niriWorkspace) return null
-                            const wins = NiriService.windows.filter(w => w.workspace_id === niriWorkspace.id)
+                            const wins = NiriService.windows?.filter(w => w.workspace_id === niriWorkspace.id) ?? []
                             if (wins.length === 0) return null
                             return wins.find(w => w.is_focused) || wins[0]
                         } else {

@@ -8,6 +8,9 @@ pkgdesc='illogical-impulse on Niri - Quickshell and Qt6 Dependencies'
 arch=(any)
 license=(MIT)
 depends=(
+  # Quickshell - NOW IN OFFICIAL REPOS (extra)! No compilation needed!
+  quickshell
+  
   # Core Qt6
   qt6-declarative
   qt6-base
@@ -44,7 +47,7 @@ depends=(
   breeze
 )
 
-# AUR dependencies (installed separately)
-# quickshell-git
+# AUR dependencies (installed separately, minimal compilation)
 # google-breakpad
 # qt6-avif-image-plugin
+# NOTE: quickshell is now in official repos (extra) - no AUR needed!

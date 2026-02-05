@@ -380,7 +380,7 @@ Singleton {
         if (xdgCurrentDesktop && (xdgCurrentDesktop.includes("GNOME") || xdgCurrentDesktop.includes("gnome"))) {
             isHyprland = false
             isNiri = false
-            isGnome = false
+            isGnome = true
             compositor = "gnome"
             console.info("CompositorService: Detected GNOME Shell")
             return
@@ -390,7 +390,7 @@ Singleton {
         isNiri = false
         isGnome = false
         compositor = "unknown"
-        console.warn("CompositorService: No compositor detected")
+        // Silent - expected when running on Niri (no HYPRLAND_INSTANCE_SIGNATURE set)
     }
 
     function powerOffMonitors() {

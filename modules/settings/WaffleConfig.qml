@@ -142,7 +142,7 @@ ContentPage {
     }
 
     SettingsCardSection {
-        visible: root.isWaffleActive && root.isPanelEnabled("iiBackdrop")
+        visible: root.isWaffleActive
         expanded: false
         icon: "layers"
         title: Translation.tr("Backdrop (Niri Overview)")
@@ -162,6 +162,19 @@ ContentPage {
                 checked: Config.options?.waffles?.background?.backdrop?.enable ?? true
                 onCheckedChanged: {
                     Config.options.waffles.background.backdrop.enable = checked;
+                }
+            }
+
+            SettingsSwitch {
+                visible: Config.options?.waffles?.background?.backdrop?.enable ?? true
+                buttonIcon: "play_circle"
+                text: Translation.tr("Enable animated wallpapers (videos/GIFs)")
+                checked: Config.options?.waffles?.background?.backdrop?.enableAnimation ?? false
+                onCheckedChanged: {
+                    Config.options.waffles.background.backdrop.enableAnimation = checked;
+                }
+                StyledToolTip {
+                    text: Translation.tr("Play videos and GIFs in backdrop (may impact performance)")
                 }
             }
 
@@ -487,6 +500,14 @@ ContentPage {
         title: Translation.tr("Alt+Tab Switcher")
 
         SettingsGroup {
+            SettingsSwitch {
+                buttonIcon: "visibility_off"
+                text: Translation.tr("No visual UI (cycle windows only)")
+                checked: Config.options?.waffles?.altSwitcher?.noVisualUi ?? false
+                onCheckedChanged: Config.setNestedValue("waffles.altSwitcher.noVisualUi", checked)
+                StyledToolTip { text: Translation.tr("Use Alt+Tab to switch windows without showing the switcher overlay") }
+            }
+
             ConfigSelectionArray {
                 options: [
                     { displayName: Translation.tr("Thumbnails"), icon: "grid_view", value: "thumbnails" },

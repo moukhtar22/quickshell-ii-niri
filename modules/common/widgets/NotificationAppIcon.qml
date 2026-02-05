@@ -27,10 +27,11 @@ MaterialShape { // App icon
     ]
     shape: isUrgent ? urgentShapes[Math.floor(Math.random() * urgentShapes.length)] : MaterialShape.Shape.Circle
 
-    color: isUrgent ? Appearance.colors.colPrimaryContainer : Appearance.colors.colSecondaryContainer
+    color: isUrgent ? Appearance.colors.colPrimaryContainer : "transparent"
     Loader {
         id: materialSymbolLoader
-        active: root.appIcon == ""
+        // Only show MaterialSymbol when there's no appIcon AND no image
+        active: root.appIcon == "" && root.image == ""
         anchors.fill: parent
         sourceComponent: MaterialSymbol {
             text: {

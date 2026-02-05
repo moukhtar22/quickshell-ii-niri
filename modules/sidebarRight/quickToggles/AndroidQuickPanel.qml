@@ -133,7 +133,7 @@ AbstractQuickPanel {
             }
             sourceComponent: Rectangle {
                 implicitHeight: 1
-                color: Appearance.colors.colOutlineVariant
+                color: Appearance.auroraEverywhere ? "transparent" : Appearance.colors.colOutlineVariant
             }
         }
 

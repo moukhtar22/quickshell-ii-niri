@@ -86,7 +86,7 @@ AndroidQuickToggleButton {
     Process {
         id: fetchActiveState
         running: false
-        command: [root.warpCliPath, "status"]
+        command: ["/bin/sh", "-c", root.warpCliPath + " status"]
         onExited: (exitCode, exitStatus) => {
             if (exitCode !== 0) {
                 root.visible = true

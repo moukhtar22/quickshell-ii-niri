@@ -19,7 +19,23 @@
   },
   "appearance": {
     "extraBackgroundTint": true,
+    "softenColors": true,
     "fakeScreenRounding": 0,
+    "recentThemes": [],
+    "favoriteThemes": [],
+    "globalStyleCornerStyles": {
+      "material": 1,
+      "cards": 3,
+      "aurora": 0,
+      "inir": 1
+    },
+    "themeSchedule": {
+      "enabled": false,
+      "dayTheme": "auto",
+      "nightTheme": "auto",
+      "dayStart": "06:00",
+      "nightStart": "18:00"
+    },
     "palette": {
       "type": "auto"
     },
@@ -34,10 +50,35 @@
       "enableQtApps": true,
       "enableTerminal": true,
       "terminalGenerationProps": {
-        "forceDarkMode": true,
+        "forceDarkMode": false,
         "harmonizeThreshold": 100,
-        "harmony": 0.8,
-        "termFgBoost": 0.5
+        "harmony": 0.6,
+        "termFgBoost": 0.35
+      },
+      "terminalColorAdjustments": {
+        "saturation": 0.40,
+        "brightness": 0.55,
+        "harmony": 0.15
+      },
+      "terminals": {
+        "kitty": true,
+        "alacritty": true,
+        "foot": true,
+        "wezterm": true,
+        "ghostty": true,
+        "konsole": true
+      }
+    },
+    "typography": {
+      "mainFont": "Roboto Flex",
+      "titleFont": "Gabarito",
+      "monospaceFont": "JetBrainsMono Nerd Font",
+      "sizeScale": 1.0,
+      "syncWithSystem": true,
+      "variableAxes": {
+        "wght": 300,
+        "wdth": 105,
+        "grad": 175
       }
     }
   },
@@ -170,7 +211,7 @@
       "rightSidebarButton": true,
       "sysTray": true,
       "utilButtons": true,
-      "weather": false,
+      "weather": true,
       "workspaces": true
     },
     "modulesLayout": {
@@ -222,7 +263,7 @@
     "vertical": false,
     "weather": {
       "city": "",
-      "enable": false,
+      "enable": true,
       "enableGPS": false,
       "fetchInterval": 10,
       "useUSCS": false
@@ -281,7 +322,8 @@
     ],
     "pinnedOnStartup": true,
     "showBackground": false,
-    "iconSize": 35
+    "iconSize": 35,
+    "separatePinnedFromRunning": true
   },
   "hacks": {
     "arbitraryRaceConditionDelay": 20
@@ -495,11 +537,19 @@
           },
           {
             "size": 1,
-            "type": "onScreenKeyboard"
+            "type": "gameMode"
           },
           {
             "size": 1,
-            "type": "idleInhibitor"
+            "type": "nightLight"
+          },
+          {
+            "size": 1,
+            "type": "musicRecognition"
+          },
+          {
+            "size": 1,
+            "type": "cloudflareWarp"
           }
         ]
       },
@@ -508,6 +558,31 @@
     "translator": {
       "delay": 300,
       "enable": true
+    },
+    "tools": {
+      "enable": false
+    },
+    "ytmusic": {
+      "enable": true,
+      "autoConnect": true,
+      "hideSyncBanner": false,
+      "browser": "firefox",
+      "cookiesPath": "",
+      "recentSearches": [],
+      "queue": [],
+      "playlists": [],
+      "liked": [],
+      "lastLikedSync": "",
+      "profile": {
+        "name": "",
+        "avatar": "",
+        "url": ""
+      },
+      "cache": {
+        "playlists": [],
+        "albums": [],
+        "liked": []
+      }
     },
     "wallhaven": {
       "enable": true,
@@ -520,7 +595,13 @@
     },
     "reddit": {
       "enable": false,
-      "subreddits": ["unixporn", "linux", "archlinux", "kde", "gnome"],
+      "subreddits": [
+        "unixporn",
+        "linux",
+        "archlinux",
+        "kde",
+        "gnome"
+      ],
       "limit": 25
     },
     "widgets": {
@@ -533,11 +614,23 @@
       "controls": true,
       "status": true,
       "crypto": false,
-      "widgetOrder": ["media", "week", "context", "note", "launch", "controls", "status", "crypto"],
+      "widgetOrder": [
+        "media",
+        "week",
+        "context",
+        "note",
+        "launch",
+        "controls",
+        "status",
+        "crypto"
+      ],
       "spacing": 8,
       "crypto_settings": {
         "refreshInterval": 60,
-        "coins": ["bitcoin", "ethereum"]
+        "coins": [
+          "bitcoin",
+          "ethereum"
+        ]
       },
       "glance": {
         "showVolume": true,
@@ -562,10 +655,26 @@
         "showLock": true
       },
       "quickLaunch": [
-        { "icon": "folder", "name": "Files", "cmd": "/usr/bin/nautilus" },
-        { "icon": "terminal", "name": "Terminal", "cmd": "/usr/bin/kitty" },
-        { "icon": "web", "name": "Browser", "cmd": "/usr/bin/firefox" },
-        { "icon": "code", "name": "Code", "cmd": "/usr/bin/code" }
+        {
+          "icon": "folder",
+          "name": "Files",
+          "cmd": "/usr/bin/nautilus"
+        },
+        {
+          "icon": "terminal",
+          "name": "Terminal",
+          "cmd": "/usr/bin/kitty"
+        },
+        {
+          "icon": "web",
+          "name": "Browser",
+          "cmd": "/usr/bin/firefox"
+        },
+        {
+          "icon": "code",
+          "name": "Code",
+          "cmd": "/usr/bin/code"
+        }
       ]
     }
   },
@@ -661,6 +770,10 @@
     "checkInterval": 120,
     "adviseUpdateThreshold": 75,
     "stronglyAdviseUpdateThreshold": 200
+  },
+  "welcomeWizard": {
+    "completed": false,
+    "skipped": false
   },
   "waffles": {
     "settings": {
@@ -788,6 +901,7 @@
     "iiBackground",
     "iiBackdrop",
     "iiCheatsheet",
+    "iiControlPanel",
     "iiDock",
     "iiLock",
     "iiMediaControls",

@@ -18,19 +18,36 @@ Item {
     implicitHeight: hasPlayer ? card.implicitHeight + Appearance.sizes.elevationMargin : 0
     visible: hasPlayer
 
-    readonly property MprisPlayer player: MprisController.activePlayer
-    readonly property bool hasPlayer: player && player.trackTitle
+    property MprisPlayer player: MprisController.activePlayer
+    readonly property bool isYtMusicPlayer: MprisController.isYtMusicActive
+    readonly property bool hasPlayer: (player && player.trackTitle) || (isYtMusicPlayer && YtMusic.currentVideoId)
+    
+    readonly property string effectiveTitle: isYtMusicPlayer ? YtMusic.currentTitle : (player?.trackTitle ?? "")
+    readonly property string effectiveArtist: isYtMusicPlayer ? YtMusic.currentArtist : (player?.trackArtist ?? "")
+    readonly property string effectiveArtUrl: isYtMusicPlayer ? YtMusic.currentThumbnail : (player?.trackArtUrl ?? "")
+    readonly property real effectivePosition: isYtMusicPlayer ? YtMusic.currentPosition : (player?.position ?? 0)
+    readonly property real effectiveLength: isYtMusicPlayer ? YtMusic.currentDuration : (player?.length ?? 0)
+    readonly property bool effectiveIsPlaying: isYtMusicPlayer ? YtMusic.isPlaying : (player?.isPlaying ?? false)
+    readonly property bool effectiveCanSeek: isYtMusicPlayer ? YtMusic.canSeek : (player?.canSeek ?? false)
+    
     property string artDownloadLocation: Directories.coverArt
-    property string artFileName: player?.trackArtUrl ? Qt.md5(player.trackArtUrl) : ""
+    property string artFileName: effectiveArtUrl ? Qt.md5(effectiveArtUrl) : ""
     property string artFilePath: artFileName ? `${artDownloadLocation}/${artFileName}` : ""
     property bool downloaded: false
     property string displayedArtFilePath: downloaded ? Qt.resolvedUrl(artFilePath) : ""
-    property list<real> visualizerPoints: []
     property int _downloadRetryCount: 0
     readonly property int _maxRetries: 3
 
+    // Cava visualizer - using shared CavaProcess component
+    CavaProcess {
+        id: cavaProcess
+        active: root.visible && root.hasPlayer && GlobalStates.sidebarLeftOpen && Appearance.effectsEnabled
+    }
+
+    property list<real> visualizerPoints: cavaProcess.points
+
     function checkAndDownloadArt() {
-        if (!player?.trackArtUrl) {
+        if (!root.effectiveArtUrl) {
             downloaded = false
             _downloadRetryCount = 0
             return
@@ -39,7 +56,7 @@ Item {
     }
 
     function retryDownload() {
-        if (_downloadRetryCount < _maxRetries && player?.trackArtUrl) {
+        if (_downloadRetryCount < _maxRetries && root.effectiveArtUrl) {
             _downloadRetryCount++
             retryTimer.start()
         }
@@ -47,11 +64,11 @@ Item {
 
     Timer {
         id: retryTimer
-        interval: 1000 * root._downloadRetryCount  // Exponential backoff: 1s, 2s, 3s
+        interval: 1000 * root._downloadRetryCount
         repeat: false
         onTriggered: {
-            if (root.player?.trackArtUrl && !root.downloaded) {
-                coverArtDownloader.targetFile = root.player.trackArtUrl
+            if (root.effectiveArtUrl && !root.downloaded) {
+                coverArtDownloader.targetFile = root.effectiveArtUrl
                 coverArtDownloader.artFilePath = root.artFilePath
                 coverArtDownloader.running = true
             }
@@ -63,13 +80,9 @@ Item {
         checkAndDownloadArt()
     }
     
-    // Update art when track changes on current player
-    Connections {
-        target: root.player
-        function onTrackArtUrlChanged() {
-            root._downloadRetryCount = 0
-            root.checkAndDownloadArt()
-        }
+    onEffectiveArtUrlChanged: {
+        _downloadRetryCount = 0
+        checkAndDownloadArt()
     }
     
     // Re-check cover art when becoming visible
@@ -88,7 +101,7 @@ Item {
                 root._downloadRetryCount = 0
             } else {
                 root.downloaded = false
-                coverArtDownloader.targetFile = root.player?.trackArtUrl ?? ""
+                coverArtDownloader.targetFile = root.effectiveArtUrl ?? ""
                 coverArtDownloader.artFilePath = root.artFilePath
                 coverArtDownloader.running = true
             }
@@ -113,18 +126,6 @@ Item {
             } else {
                 root.downloaded = false
                 root.retryDownload()
-            }
-        }
-    }
-
-    Process {
-        id: cavaProc
-        running: root.visible && root.hasPlayer && GlobalStates.sidebarLeftOpen
-        onRunningChanged: { if (!running) root.visualizerPoints = [] }
-        command: ["cava", "-p", `${FileUtils.trimFileProtocol(Directories.scriptPath)}/cava/raw_output_config.txt`]
-        stdout: SplitParser {
-            onRead: data => {
-                root.visualizerPoints = data.split(";").map(p => parseFloat(p.trim())).filter(p => !isNaN(p))
             }
         }
     }
@@ -162,7 +163,7 @@ Item {
              : Appearance.auroraEverywhere ? ColorUtils.transparentize(blendedColors?.colLayer0 ?? Appearance.colors.colLayer0, 0.7)
              : (blendedColors?.colLayer0 ?? Appearance.colors.colLayer0)
         border.width: Appearance.inirEverywhere ? 1 : 0
-        border.color: Appearance.inir.colBorder
+        border.color: Appearance.inirEverywhere ? Appearance.inir.colBorder : "transparent"
         clip: true
 
         layer.enabled: true
@@ -207,7 +208,7 @@ Item {
             anchors.right: parent.right
             anchors.bottom: parent.bottom
             height: 30
-            live: root.player?.isPlaying ?? false
+            live: root.effectiveIsPlaying
             points: root.visualizerPoints
             maxVisualizerValue: 1000
             smoothing: 2
@@ -314,7 +315,7 @@ Item {
                 // Title
                 StyledText {
                     Layout.fillWidth: true
-                    text: StringUtils.cleanMusicTitle(root.player?.trackTitle) || "—"
+                    text: StringUtils.cleanMusicTitle(root.effectiveTitle) || "—"
                     font.pixelSize: Appearance.font.pixelSize.normal
                     font.weight: Font.Medium
                     color: Appearance.inirEverywhere ? root.jiraColText : (blendedColors?.colOnLayer0 ?? Appearance.colors.colOnLayer0)
@@ -326,7 +327,7 @@ Item {
                 // Artist
                 StyledText {
                     Layout.fillWidth: true
-                    text: root.player?.trackArtist || ""
+                    text: root.effectiveArtist || ""
                     font.pixelSize: Appearance.font.pixelSize.smaller
                     color: Appearance.inirEverywhere ? root.jiraColTextSecondary : (blendedColors?.colSubtext ?? Appearance.colors.colSubtext)
                     elide: Text.ElideRight
@@ -342,29 +343,35 @@ Item {
 
                     Loader {
                         anchors.fill: parent
-                        active: root.player?.canSeek ?? false
+                        active: root.effectiveCanSeek
                         sourceComponent: StyledSlider {
                             configuration: StyledSlider.Configuration.Wavy
-                            wavy: root.player?.isPlaying ?? false
-                            animateWave: root.player?.isPlaying ?? false
+                            wavy: root.effectiveIsPlaying
+                            animateWave: root.effectiveIsPlaying
                             highlightColor: Appearance.inirEverywhere ? root.jiraColPrimary : (blendedColors?.colPrimary ?? Appearance.colors.colPrimary)
                             trackColor: Appearance.inirEverywhere ? Appearance.inir.colLayer2 : (blendedColors?.colSecondaryContainer ?? Appearance.colors.colSecondaryContainer)
                             handleColor: Appearance.inirEverywhere ? root.jiraColPrimary : (blendedColors?.colPrimary ?? Appearance.colors.colPrimary)
-                            value: root.player?.length > 0 ? root.player.position / root.player.length : 0
-                            onMoved: root.player.position = value * root.player.length
+                            value: root.effectiveLength > 0 ? root.effectivePosition / root.effectiveLength : 0
+                            onMoved: {
+                                if (root.isYtMusicPlayer) {
+                                    YtMusic.seek(value * root.effectiveLength)
+                                } else if (root.player) {
+                                    root.player.position = value * root.player.length
+                                }
+                            }
                             scrollable: true
                         }
                     }
 
                     Loader {
                         anchors.fill: parent
-                        active: !(root.player?.canSeek ?? false)
+                        active: !root.effectiveCanSeek
                         sourceComponent: StyledProgressBar {
-                            wavy: root.player?.isPlaying ?? false
-                            animateWave: root.player?.isPlaying ?? false
+                            wavy: root.effectiveIsPlaying
+                            animateWave: root.effectiveIsPlaying
                             highlightColor: Appearance.inirEverywhere ? root.jiraColPrimary : (blendedColors?.colPrimary ?? Appearance.colors.colPrimary)
                             trackColor: Appearance.inirEverywhere ? Appearance.inir.colLayer2 : (blendedColors?.colSecondaryContainer ?? Appearance.colors.colSecondaryContainer)
-                            value: root.player?.length > 0 ? root.player.position / root.player.length : 0
+                            value: root.effectiveLength > 0 ? root.effectivePosition / root.effectiveLength : 0
                         }
                     }
                 }
@@ -375,7 +382,7 @@ Item {
                     spacing: 4
 
                     StyledText {
-                        text: StringUtils.friendlyTimeForSeconds(root.player?.position ?? 0)
+                        text: StringUtils.friendlyTimeForSeconds(root.effectivePosition)
                         font.pixelSize: Appearance.font.pixelSize.smallest
                         font.family: Appearance.font.family.numbers
                         color: Appearance.inirEverywhere ? root.jiraColText : (blendedColors?.colOnLayer0 ?? Appearance.colors.colOnLayer0)
@@ -391,7 +398,7 @@ Item {
                         colBackground: "transparent"
                         colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover : ColorUtils.transparentize(blendedColors?.colLayer1 ?? Appearance.colors.colLayer1, 0.5)
                         colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer2Active : (blendedColors?.colLayer1Active ?? Appearance.colors.colLayer1Active)
-                        onClicked: root.player?.previous()
+                        onClicked: MprisController.previous()
 
                         contentItem: Item {
                             MaterialSymbol {
@@ -412,29 +419,29 @@ Item {
                         implicitHeight: 40
                         buttonRadius: Appearance.inirEverywhere 
                             ? Appearance.inir.roundingSmall 
-                            : (root.player?.isPlaying ? Appearance.rounding.normal : Appearance.rounding.full)
+                            : (root.effectiveIsPlaying ? Appearance.rounding.normal : Appearance.rounding.full)
                         colBackground: Appearance.inirEverywhere
                             ? "transparent"
                             : Appearance.auroraEverywhere
                                 ? "transparent"
-                                : (root.player?.isPlaying 
+                                : (root.effectiveIsPlaying 
                                     ? (blendedColors?.colPrimary ?? Appearance.colors.colPrimary)
                                     : (blendedColors?.colSecondaryContainer ?? Appearance.colors.colSecondaryContainer))
                         colBackgroundHover: Appearance.inirEverywhere
                             ? Appearance.inir.colLayer2Hover
                             : Appearance.auroraEverywhere
                                 ? ColorUtils.transparentize(blendedColors?.colLayer1 ?? Appearance.colors.colLayer1, 0.5)
-                                : (root.player?.isPlaying 
+                                : (root.effectiveIsPlaying 
                                     ? (blendedColors?.colPrimaryHover ?? Appearance.colors.colPrimaryHover)
                                     : (blendedColors?.colSecondaryContainerHover ?? Appearance.colors.colSecondaryContainerHover))
                         colRipple: Appearance.inirEverywhere
                             ? Appearance.inir.colLayer2Active
                             : Appearance.auroraEverywhere
                                 ? (blendedColors?.colLayer1Active ?? Appearance.colors.colLayer1Active)
-                                : (root.player?.isPlaying 
+                                : (root.effectiveIsPlaying 
                                     ? (blendedColors?.colPrimaryActive ?? Appearance.colors.colPrimaryActive)
                                     : (blendedColors?.colSecondaryContainerActive ?? Appearance.colors.colSecondaryContainerActive))
-                        onClicked: root.player?.togglePlaying()
+                        onClicked: MprisController.togglePlaying()
 
                         Behavior on buttonRadius {
                             enabled: Appearance.animationsEnabled && !Appearance.inirEverywhere
@@ -444,14 +451,14 @@ Item {
                         contentItem: Item {
                             MaterialSymbol {
                                 anchors.centerIn: parent
-                                text: root.player?.isPlaying ? "pause" : "play_arrow"
+                                text: root.effectiveIsPlaying ? "pause" : "play_arrow"
                                 iconSize: 24
                                 fill: 1
                                 color: Appearance.inirEverywhere
                                     ? root.jiraColPrimary
                                     : Appearance.auroraEverywhere
                                         ? (blendedColors?.colOnLayer0 ?? Appearance.colors.colOnLayer0)
-                                        : (root.player?.isPlaying 
+                                        : (root.effectiveIsPlaying 
                                             ? (blendedColors?.colOnPrimary ?? Appearance.colors.colOnPrimary)
                                             : (blendedColors?.colOnSecondaryContainer ?? Appearance.colors.colOnSecondaryContainer))
 
@@ -462,7 +469,7 @@ Item {
                             }
                         }
 
-                        StyledToolTip { text: root.player?.isPlaying ? Translation.tr("Pause") : Translation.tr("Play") }
+                        StyledToolTip { text: root.effectiveIsPlaying ? Translation.tr("Pause") : Translation.tr("Play") }
                     }
 
                     RippleButton {
@@ -472,7 +479,7 @@ Item {
                         colBackground: "transparent"
                         colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover : ColorUtils.transparentize(blendedColors?.colLayer1 ?? Appearance.colors.colLayer1, 0.5)
                         colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer2Active : (blendedColors?.colLayer1Active ?? Appearance.colors.colLayer1Active)
-                        onClicked: root.player?.next()
+                        onClicked: MprisController.next()
 
                         contentItem: Item {
                             MaterialSymbol {
@@ -490,7 +497,7 @@ Item {
                     Item { Layout.fillWidth: true }
 
                     StyledText {
-                        text: StringUtils.friendlyTimeForSeconds(root.player?.length ?? 0)
+                        text: StringUtils.friendlyTimeForSeconds(root.effectiveLength)
                         font.pixelSize: Appearance.font.pixelSize.smallest
                         font.family: Appearance.font.family.numbers
                         color: Appearance.inirEverywhere ? root.jiraColText : (blendedColors?.colOnLayer0 ?? Appearance.colors.colOnLayer0)
@@ -501,9 +508,13 @@ Item {
     }
 
     Timer {
-        running: root.player?.playbackState === MprisPlaybackState.Playing
+        running: root.effectiveIsPlaying
         interval: 1000
         repeat: true
-        onTriggered: root.player?.positionChanged()
+        onTriggered: {
+            if (!root.isYtMusicPlayer && root.player) {
+                root.player.positionChanged()
+            }
+        }
     }
 }

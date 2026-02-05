@@ -51,10 +51,10 @@ LazyLoader {
             onHoveredChanged: root.popupHovered = hovered
         }
 
-        anchors.left: !Config.options.bar.vertical || (Config.options.bar.vertical && !Config.options.bar.bottom)
-        anchors.right: Config.options.bar.vertical && Config.options.bar.bottom
-        anchors.top: Config.options.bar.vertical || (!Config.options.bar.vertical && !Config.options.bar.bottom)
-        anchors.bottom: !Config.options.bar.vertical && Config.options.bar.bottom
+        anchors.left: !(Config.options?.bar?.vertical ?? false) || ((Config.options?.bar?.vertical ?? false) && !(Config.options?.bar?.bottom ?? false))
+        anchors.right: (Config.options?.bar?.vertical ?? false) && (Config.options?.bar?.bottom ?? false)
+        anchors.top: (Config.options?.bar?.vertical ?? false) || (!(Config.options?.bar?.vertical ?? false) && !(Config.options?.bar?.bottom ?? false))
+        anchors.bottom: !(Config.options?.bar?.vertical ?? false) && (Config.options?.bar?.bottom ?? false)
 
         implicitWidth: popupBackground.implicitWidth + Appearance.sizes.elevationMargin * 2 + root.popupBackgroundMargin
         implicitHeight: popupBackground.implicitHeight + Appearance.sizes.elevationMargin * 2 + root.popupBackgroundMargin
@@ -67,7 +67,7 @@ LazyLoader {
         exclusiveZone: 0
         margins {
             left: {
-                if (!Config.options.bar.vertical && root.QsWindow && root.hoverTarget && root.hoverTarget.width > 0) {
+                if (!(Config.options?.bar?.vertical ?? false) && root.QsWindow && root.hoverTarget && root.hoverTarget.width > 0) {
                     return root.QsWindow.mapFromItem(
                         root.hoverTarget,
                         (root.hoverTarget.width - popupBackground.implicitWidth) / 2, 0
@@ -76,7 +76,7 @@ LazyLoader {
                 return Appearance.sizes.verticalBarWidth
             }
             top: {
-                if (!Config.options.bar.vertical) return Appearance.sizes.barHeight;
+                if (!(Config.options?.bar?.vertical ?? false)) return Appearance.sizes.barHeight;
                 if (root.QsWindow && root.hoverTarget && root.hoverTarget.height > 0) {
                     return root.QsWindow.mapFromItem(
                         root.hoverTarget,

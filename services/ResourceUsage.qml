@@ -173,30 +173,51 @@ Singleton {
 
     Process {
         id: detectTempSensors
-        // Detect CPU: k10temp (AMD), coretemp (Intel), cpu_thermal (ARM)
-        // Detect GPU: amdgpu (AMD), nvidia (NVIDIA), nouveau (NVIDIA open)
+        // Detect CPU and GPU temperature sensors
+        // Extended support for older hardware, laptops, and various platforms
         command: ["/usr/bin/bash", "-c", `
+            cpu_found=""
+            gpu_found=""
+
             for hwmon in /sys/class/hwmon/hwmon*; do
                 name=$(cat $hwmon/name 2>/dev/null)
+
+                # Find best temp input (prefer temp1, but check others)
+                temp_input=""
+                for t in $hwmon/temp*_input; do
+                    [ -f "$t" ] && temp_input="$t" && break
+                done
+                [ -z "$temp_input" ] && continue
+
+                # CPU sensors - extended list for various hardware
                 case "$name" in
-                    k10temp|coretemp|cpu_thermal|zenpower)
-                        echo "cpu:$hwmon/temp1_input"
+                    coretemp|k10temp|zenpower|cpu_thermal|fam15h_power|acpitz|thinkpad|dell_smm|hp_wmi|asus_ec|it87|nct6775|w83627ehf|lm75|lm78|lm85|via_cputemp|pch_*)
+                        [ -z "$cpu_found" ] && echo "cpu:$temp_input" && cpu_found=1
                         ;;
-                    amdgpu|radeon|nvidia|nouveau|i915)
-                        echo "gpu:$hwmon/temp1_input"
+                esac
+
+                # GPU sensors
+                case "$name" in
+                    amdgpu|radeon|nvidia|nouveau|i915|xe|panfrost|lima|v3d|vc4)
+                        [ -z "$gpu_found" ] && echo "gpu:$temp_input" && gpu_found=1
                         ;;
                 esac
             done
-            # Fallback to thermal_zone if no hwmon found
-            if [ ! -f /sys/class/hwmon/hwmon*/temp1_input ]; then
-                for tz in /sys/class/thermal/thermal_zone*; do
-                    type=$(cat $tz/type 2>/dev/null)
-                    case "$type" in
-                        *cpu*|*CPU*|x86_pkg_temp) echo "cpu:$tz/temp" ;;
-                        *gpu*|*GPU*) echo "gpu:$tz/temp" ;;
-                    esac
-                done
-            fi
+
+            # Fallback to thermal_zone if hwmon didn't find sensors
+            for tz in /sys/class/thermal/thermal_zone*; do
+                [ -f "$tz/temp" ] || continue
+                type=$(cat $tz/type 2>/dev/null | tr '[:upper:]' '[:lower:]')
+
+                case "$type" in
+                    *cpu*|x86_pkg_temp|acpitz|*soc*|*core*|*package*|*processor*|int3400*|pch*|b0d4*)
+                        [ -z "$cpu_found" ] && echo "cpu:$tz/temp" && cpu_found=1
+                        ;;
+                    *gpu*|*radeon*|*amdgpu*|*nvidia*)
+                        [ -z "$gpu_found" ] && echo "gpu:$tz/temp" && gpu_found=1
+                        ;;
+                esac
+            done
         `]
         stdout: SplitParser {
             onRead: line => {

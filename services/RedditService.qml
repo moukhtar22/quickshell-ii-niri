@@ -193,7 +193,9 @@ Singleton {
         // Try to focus existing browser window first
         if (typeof NiriService !== "undefined" && NiriService.windows) {
             const browserPatterns = ["firefox", "chromium", "chrome", "brave", "zen", "librewolf", "vivaldi", "opera"]
-            for (const win of NiriService.windows) {
+            const windows = NiriService.windows ?? []
+            for (let i = 0; i < windows.length; i++) {
+                const win = windows[i]
                 const appId = (win.app_id ?? "").toLowerCase()
                 if (browserPatterns.some(p => appId.includes(p))) {
                     NiriService.focusWindow(win.id)

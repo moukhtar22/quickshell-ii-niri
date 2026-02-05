@@ -19,6 +19,22 @@ DockButton {
     property bool appIsActive: appToplevel.toplevels.find(t => (t.activated == true)) !== undefined
     property bool hasWindows: appToplevel.toplevels.length > 0
     
+    // Hover preview signals
+    signal hoverPreviewRequested()
+    signal hoverPreviewDismissed()
+    
+    // Timer for hover delay before showing preview
+    property alias hoverTimer: hoverDelayTimer
+    Timer {
+        id: hoverDelayTimer
+        interval: Config.options?.dock?.hoverPreviewDelay ?? 400
+        onTriggered: {
+            if (root.hasWindows && root.buttonHovered) {
+                root.hoverPreviewRequested()
+            }
+        }
+    }
+    
     // Determine focused window index for smart indicator (Niri only)
     // Returns the index (0-based) of the focused window sorted by column position
     property int focusedWindowIndex: {
@@ -105,9 +121,20 @@ DockButton {
             if (buttonHovered) {
                 appListRoot.lastHoveredButton = root
                 appListRoot.buttonHovered = true
-            } else if (appListRoot.lastHoveredButton === root) {
-                appListRoot.buttonHovered = false
+                // Start hover timer for preview
+                if (Config.options?.dock?.hoverPreview !== false) {
+                    hoverDelayTimer.restart()
+                }
+            } else {
+                if (appListRoot.lastHoveredButton === root) {
+                    appListRoot.buttonHovered = false
+                }
+                hoverDelayTimer.stop()
+                // Don't dismiss preview here - let the popup's timer handle it
+                // This allows mouse to move from button to popup without closing
             }
+        } else {
+            hoverDelayTimer.stop()
         }
     }
 
@@ -156,8 +183,14 @@ DockButton {
     }
 
     altAction: () => {
+        showContextMenu()
+    }
+
+    function showContextMenu() {
         root.appListRoot.closeAllContextMenus()
         root.appListRoot.contextMenuOpen = true
+        root.hoverPreviewDismissed()
+        hoverDelayTimer.stop()
         contextMenu.active = true
     }
 
@@ -186,7 +219,7 @@ DockButton {
             })).concat({ type: "separator" }) : []),
             // Launch new instance
             {
-                iconName: root.desktopEntry?.icon ?? "",
+                iconName: IconThemeService.smartIconName(root.desktopEntry?.icon ?? "", appToplevel.originalAppId ?? appToplevel.appId),
                 text: root.desktopEntry?.name ?? StringUtils.toTitleCase(appToplevel.originalAppId ?? appToplevel.appId),
                 monochromeIcon: false,
                 action: () => root.launchFromDesktopEntry()
@@ -195,6 +228,7 @@ DockButton {
             {
                 iconName: appToplevel.pinned ? "keep_off" : "keep",
                 text: appToplevel.pinned ? Translation.tr("Unpin from dock") : Translation.tr("Pin to dock"),
+                monochromeIcon: true,
                 action: () => {
                     const appId = appToplevel.originalAppId ?? appToplevel.appId;
                     if (Config.options?.dock?.pinnedApps?.indexOf(appId) !== -1) {
@@ -210,6 +244,7 @@ DockButton {
                 {
                     iconName: "close",
                     text: appToplevel.toplevels.length > 1 ? Translation.tr("Close all windows") : Translation.tr("Close window"),
+                    monochromeIcon: true,
                     action: () => {
                         for (let toplevel of appToplevel.toplevels) {
                             toplevel.close()
@@ -237,25 +272,51 @@ DockButton {
                     id: dockIcon
                     property string iconName: {
                         const appId = appToplevel.originalAppId ?? appToplevel.appId;
+                        let icon = "";
                         if (appId === "Spotify" || appId === "spotify" || appId === "spotify-launcher") {
-                            return "spotify";
+                            icon = "spotify";
+                        } else {
+                            icon = root.desktopEntry?.icon || AppSearch.guessIcon(appId);
                         }
-                        return root.desktopEntry?.icon || AppSearch.guessIcon(appId);
+                        // Use smart resolution to fix absolute paths that don't exist (e.g. Electron apps)
+                        return IconThemeService.smartIconName(icon, appId);
                     }
-                    property var candidates: IconThemeService.dockIconCandidates(iconName)
+                    // Don't generate candidates if iconName is already an absolute path
+                    property bool isAbsolutePath: iconName.startsWith("/") || iconName.startsWith("file://")
+                    property var candidates: isAbsolutePath ? [] : IconThemeService.dockIconCandidates(iconName)
                     property int candidateIndex: 0
                     
-                    source: candidates.length > 0 ? candidates[0] : Quickshell.iconPath(iconName, "image-missing")
+                    source: {
+                        if (isAbsolutePath) {
+                            return iconName.startsWith("file://") ? iconName : `file://${iconName}`
+                        }
+                        return candidates.length > 0 ? candidates[0] : Quickshell.iconPath(iconName, "image-missing")
+                    }
                     implicitSize: root.iconSize
                     
                     onStatusChanged: {
-                        if (status === Image.Error && candidates.length > 0) {
-                            candidateIndex++
-                            if (candidateIndex < candidates.length) {
-                                source = candidates[candidateIndex]
-                            } else {
-                                // All candidates failed, use system icon
-                                source = Quickshell.iconPath(iconName, "image-missing")
+                        if (status === Image.Error) {
+                            // Fix for absolute paths failing (e.g. Electron apps pointing to non-existent files)
+                            if (isAbsolutePath) {
+                                const path = iconName.startsWith("file://") ? iconName.substring(7) : iconName;
+                                const fileName = path.split("/").pop();
+                                let baseName = fileName;
+                                if (baseName.includes(".")) {
+                                    baseName = baseName.split(".").slice(0, -1).join(".");
+                                }
+                                // Try loading system icon with base name
+                                source = Quickshell.iconPath(baseName, "image-missing");
+                                return;
+                            }
+
+                            if (candidates.length > 0) {
+                                candidateIndex++;
+                                if (candidateIndex < candidates.length) {
+                                    source = candidates[candidateIndex];
+                                } else {
+                                    // All candidates failed, use system icon
+                                    source = Quickshell.iconPath(iconName, "image-missing");
+                                }
                             }
                         }
                     }

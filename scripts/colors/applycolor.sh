@@ -41,7 +41,7 @@ apply_term() {
     sed -i "s/${colorlist[$i]} #/${colorvalues[$i]#\#}/g" "$STATE_DIR"/user/generated/terminal/sequences.txt
   done
 
-  sed -i "s/\$alpha/$term_alpha/g" "$STATE_DIR/user/generated/terminal/sequences.txt"
+  sed -i "s/\$alpha/$term_alpha/g" "$STATE_DIR"/user/generated/terminal/sequences.txt
 
   for file in /dev/pts/*; do
     if [[ $file =~ ^/dev/pts/[0-9]+$ ]]; then
@@ -50,6 +50,54 @@ apply_term() {
       } & disown || true
     fi
   done
+}
+
+apply_terminal_configs() {
+  # Generate terminal-specific config files (Kitty, Alacritty, Foot, WezTerm, Ghostty, Konsole)
+  if [ ! -f "$STATE_DIR/user/generated/material_colors.scss" ]; then
+    echo "material_colors.scss not found. Skipping terminal config generation."
+    return
+  fi
+
+  # Get enabled terminals from config
+  local enabled_terminals=()
+  if [ -f "$CONFIG_FILE" ]; then
+    # Check which terminal config generators are enabled
+    local enable_kitty=$(jq -r '.appearance.wallpaperTheming.terminals.kitty // true' "$CONFIG_FILE")
+    local enable_alacritty=$(jq -r '.appearance.wallpaperTheming.terminals.alacritty // true' "$CONFIG_FILE")
+    local enable_foot=$(jq -r '.appearance.wallpaperTheming.terminals.foot // true' "$CONFIG_FILE")
+    local enable_wezterm=$(jq -r '.appearance.wallpaperTheming.terminals.wezterm // true' "$CONFIG_FILE")
+    local enable_ghostty=$(jq -r '.appearance.wallpaperTheming.terminals.ghostty // true' "$CONFIG_FILE")
+    local enable_konsole=$(jq -r '.appearance.wallpaperTheming.terminals.konsole // true' "$CONFIG_FILE")
+
+    [[ "$enable_kitty" == "true" ]] && enabled_terminals+=(kitty)
+    [[ "$enable_alacritty" == "true" ]] && enabled_terminals+=(alacritty)
+    [[ "$enable_foot" == "true" ]] && enabled_terminals+=(foot)
+    [[ "$enable_wezterm" == "true" ]] && enabled_terminals+=(wezterm)
+    [[ "$enable_ghostty" == "true" ]] && enabled_terminals+=(ghostty)
+    [[ "$enable_konsole" == "true" ]] && enabled_terminals+=(konsole)
+  else
+    # Default: enable all
+    enabled_terminals=(kitty alacritty foot wezterm ghostty konsole)
+  fi
+
+  if [ ${#enabled_terminals[@]} -eq 0 ]; then
+    return
+  fi
+
+  # Run the Python script to generate configs
+  # Use venv python if available, otherwise system python
+  local python_cmd="python3"
+  local venv_python="${ILLOGICAL_IMPULSE_VIRTUAL_ENV:-$HOME/.local/state/quickshell/.venv}/bin/python"
+  if [[ -x "$venv_python" ]]; then
+    python_cmd="$venv_python"
+  fi
+
+  if command -v "$python_cmd" &>/dev/null || [[ -x "$python_cmd" ]]; then
+    "$python_cmd" "$SCRIPT_DIR/generate_terminal_configs.py" \
+      --scss "$STATE_DIR/user/generated/material_colors.scss" \
+      --terminals "${enabled_terminals[@]}" &>/dev/null &
+  fi
 }
 
 apply_qt() {
@@ -62,19 +110,19 @@ apply_gtk_kde() {
   if [ ! -f "$scss_file" ]; then
     return
   fi
-  
+
   # Extract colors from scss (format: $colorname: #hex;)
   get_color() {
     grep "^\$$1:" "$scss_file" | cut -d: -f2 | tr -d ' ;'
   }
-  
+
   local bg=$(get_color "background")
   local fg=$(get_color "onBackground")
   local primary=$(get_color "primary")
   local on_primary=$(get_color "onPrimary")
   local surface=$(get_color "surface")
   local surface_dim=$(get_color "surfaceDim")
-  
+
   # Call apply-gtk-theme.sh with extracted colors
   "$SCRIPT_DIR/apply-gtk-theme.sh" "$bg" "$fg" "$primary" "$on_primary" "$surface" "$surface_dim"
 }
@@ -82,13 +130,15 @@ apply_gtk_kde() {
 # Check if terminal theming is enabled in config
 CONFIG_FILE="$XDG_CONFIG_HOME/illogical-impulse/config.json"
 if [ -f "$CONFIG_FILE" ]; then
-  enable_terminal=$(jq -r '.appearance.wallpaperTheming.enableTerminal' "$CONFIG_FILE")
+  enable_terminal=$(jq -r '.appearance.wallpaperTheming.enableTerminal // true' "$CONFIG_FILE" 2>/dev/null || echo "true")
   if [ "$enable_terminal" = "true" ]; then
     apply_term &
+    apply_terminal_configs &
   fi
 else
   echo "Config file not found at $CONFIG_FILE. Applying terminal theming by default."
   apply_term &
+  apply_terminal_configs &
 fi
 
 # apply_qt & # Qt theming is already handled by kde-material-colors

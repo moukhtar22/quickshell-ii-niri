@@ -89,9 +89,11 @@ ColumnLayout {
         onLoaded: {
             try {
                 const theme = JSON.parse(text())
+                const customTheme = Config.options?.appearance?.customTheme ?? {}
                 for (let key in theme) {
-                    if (Config.options.appearance.customTheme.hasOwnProperty(key))
-                        Config.options.appearance.customTheme[key] = theme[key]
+                    if (customTheme.hasOwnProperty(key)) {
+                        Config.setNestedValue(`appearance.customTheme.${key}`, theme[key])
+                    }
                 }
                 root.applyToShell()
             } catch (e) {
@@ -266,7 +268,7 @@ ColumnLayout {
                 MaterialSymbol {
                     text: "warning"
                     iconSize: 14
-                    color: Appearance.colors.colWarning ?? "#f0a030"
+                    color: Appearance.m3colors.m3error
                 }
 
                 StyledText {
@@ -509,6 +511,458 @@ ColumnLayout {
         { name: "Zen Garden", colors: ThemePresets.zenGardenColors }
     ]
     property string selectedPresetName: ""
+
+    // Quick Adjustments - Global sliders for the entire palette
+    Rectangle {
+        Layout.fillWidth: true
+        implicitHeight: quickAdjustColumn.implicitHeight + 20
+        radius: Appearance.rounding.normal
+        color: Appearance.colors.colLayer1
+
+        ColumnLayout {
+            id: quickAdjustColumn
+            anchors.fill: parent
+            anchors.margins: 12
+            spacing: 10
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                MaterialSymbol {
+                    text: "tune"
+                    iconSize: 20
+                    color: Appearance.colors.colPrimary
+                }
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: Translation.tr("Quick Adjustments")
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    font.weight: Font.Medium
+                    color: Appearance.colors.colOnLayer1
+                }
+
+                // Reset button
+                RippleButton {
+                    implicitWidth: 28
+                    implicitHeight: 28
+                    buttonRadius: 14
+                    colBackground: Appearance.colors.colLayer2
+                    colBackgroundHover: Appearance.colors.colLayer2Hover
+
+                    MaterialSymbol {
+                        anchors.centerIn: parent
+                        text: "restart_alt"
+                        iconSize: 16
+                        color: Appearance.colors.colOnLayer2
+                    }
+
+                    onClicked: {
+                        saturationSlider.value = 100
+                        brightnessSlider.value = 0
+                        temperatureSlider.value = 0
+                    }
+
+                    StyledToolTip { text: Translation.tr("Reset adjustments"); visible: parent.buttonHovered }
+                }
+            }
+
+            // Saturation slider
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                MaterialSymbol {
+                    text: "palette"
+                    iconSize: 16
+                    color: Appearance.colors.colSubtext
+                }
+
+                StyledText {
+                    text: Translation.tr("Saturation")
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    color: Appearance.colors.colSubtext
+                    Layout.preferredWidth: 70
+                }
+
+                StyledSlider {
+                    id: saturationSlider
+                    Layout.fillWidth: true
+                    from: 0
+                    to: 200
+                    value: 100
+                    stepSize: 5
+                    configuration: StyledSlider.Configuration.S
+
+                    onMoved: { root.captureOriginalColors(); adjustDebounce.restart() }
+                }
+
+                StyledText {
+                    text: Math.round(saturationSlider.value) + "%"
+                    font.pixelSize: Appearance.font.pixelSize.smallest
+                    font.family: Appearance.font.family.monospace
+                    color: Appearance.colors.colSubtext
+                    Layout.preferredWidth: 35
+                    horizontalAlignment: Text.AlignRight
+                }
+            }
+
+            // Brightness slider
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                MaterialSymbol {
+                    text: "brightness_6"
+                    iconSize: 16
+                    color: Appearance.colors.colSubtext
+                }
+
+                StyledText {
+                    text: Translation.tr("Brightness")
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    color: Appearance.colors.colSubtext
+                    Layout.preferredWidth: 70
+                }
+
+                StyledSlider {
+                    id: brightnessSlider
+                    Layout.fillWidth: true
+                    from: -50
+                    to: 50
+                    value: 0
+                    stepSize: 5
+                    configuration: StyledSlider.Configuration.S
+
+                    onMoved: { root.captureOriginalColors(); adjustDebounce.restart() }
+                }
+
+                StyledText {
+                    text: (brightnessSlider.value >= 0 ? "+" : "") + Math.round(brightnessSlider.value)
+                    font.pixelSize: Appearance.font.pixelSize.smallest
+                    font.family: Appearance.font.family.monospace
+                    color: Appearance.colors.colSubtext
+                    Layout.preferredWidth: 35
+                    horizontalAlignment: Text.AlignRight
+                }
+            }
+
+            // Temperature slider
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                MaterialSymbol {
+                    text: "thermostat"
+                    iconSize: 16
+                    color: Appearance.colors.colSubtext
+                }
+
+                StyledText {
+                    text: Translation.tr("Temperature")
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    color: Appearance.colors.colSubtext
+                    Layout.preferredWidth: 70
+                }
+
+                StyledSlider {
+                    id: temperatureSlider
+                    Layout.fillWidth: true
+                    from: -50
+                    to: 50
+                    value: 0
+                    stepSize: 5
+                    configuration: StyledSlider.Configuration.S
+
+                    onMoved: { root.captureOriginalColors(); adjustDebounce.restart() }
+                }
+
+                StyledText {
+                    text: temperatureSlider.value > 0 ? Translation.tr("Warm") : (temperatureSlider.value < 0 ? Translation.tr("Cool") : "0")
+                    font.pixelSize: Appearance.font.pixelSize.smallest
+                    font.family: Appearance.font.family.monospace
+                    color: temperatureSlider.value > 0 ? Appearance.m3colors.m3tertiary 
+                         : (temperatureSlider.value < 0 ? Appearance.m3colors.m3primary 
+                         : Appearance.colors.colSubtext)
+                    Layout.preferredWidth: 35
+                    horizontalAlignment: Text.AlignRight
+                }
+            }
+        }
+    }
+
+    // Store original colors for quick adjustments
+    property var originalColors: null
+    
+    // Debounce timer for quick adjustments
+    Timer {
+        id: adjustDebounce
+        interval: 50
+        onTriggered: root.applyQuickAdjustments()
+    }
+
+    function captureOriginalColors() {
+        if (!originalColors) {
+            originalColors = JSON.parse(JSON.stringify(Config.options?.appearance?.customTheme ?? {}))
+        }
+    }
+
+    function applyQuickAdjustments() {
+        captureOriginalColors()
+        const satFactor = saturationSlider.value / 100
+        const brightDelta = brightnessSlider.value / 100
+        const tempDelta = temperatureSlider.value / 100  // -0.5 to 0.5
+
+        // Apply to all color keys
+        const colorKeys = Object.keys(originalColors).filter(k => k.startsWith("m3") && typeof originalColors[k] === "string" && originalColors[k].startsWith("#"))
+
+        for (const key of colorKeys) {
+            let c = Qt.color(originalColors[key])
+            // Adjust saturation
+            let newSat = Math.min(1, Math.max(0, c.hslSaturation * satFactor))
+            // Adjust brightness (lightness)
+            let newLight = Math.min(1, Math.max(0, c.hslLightness + brightDelta))
+            // Adjust temperature (hue shift toward warm/cool)
+            let newHue = c.hslHue
+            if (tempDelta !== 0) {
+                // Warm = shift toward orange (0.08), Cool = shift toward blue (0.58)
+                const targetHue = tempDelta > 0 ? 0.08 : 0.58
+                const shiftAmount = Math.abs(tempDelta) * 0.15
+                newHue = c.hslHue + (targetHue - c.hslHue) * shiftAmount
+                if (newHue < 0) newHue += 1
+                if (newHue > 1) newHue -= 1
+            }
+            let newColor = Qt.hsla(newHue, newSat, newLight, c.a)
+            Config.setNestedValue(`appearance.customTheme.${key}`, newColor.toString())
+        }
+
+        applyToShell()
+    }
+
+    // Color Harmony - Generate secondary/tertiary from primary
+    Rectangle {
+        Layout.fillWidth: true
+        implicitHeight: harmonyColumn.implicitHeight + 20
+        radius: Appearance.rounding.normal
+        color: Appearance.colors.colLayer1
+
+        ColumnLayout {
+            id: harmonyColumn
+            anchors.fill: parent
+            anchors.margins: 12
+            spacing: 10
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                MaterialSymbol {
+                    text: "auto_fix_high"
+                    iconSize: 20
+                    color: Appearance.colors.colPrimary
+                }
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: Translation.tr("Color Harmony")
+                    font.pixelSize: Appearance.font.pixelSize.small
+                    font.weight: Font.Medium
+                    color: Appearance.colors.colOnLayer1
+                }
+            }
+
+            StyledText {
+                Layout.fillWidth: true
+                text: Translation.tr("Generate secondary and tertiary colors from your primary color using color theory.")
+                font.pixelSize: Appearance.font.pixelSize.smallest
+                color: Appearance.colors.colSubtext
+                wrapMode: Text.WordWrap
+            }
+
+            // Harmony scheme selector
+            Flow {
+                Layout.fillWidth: true
+                spacing: 6
+
+                property string selectedScheme: "complementary"
+
+                Repeater {
+                    model: [
+                        { id: "complementary", name: Translation.tr("Complementary"), icon: "contrast" },
+                        { id: "analogous", name: Translation.tr("Analogous"), icon: "gradient" },
+                        { id: "triadic", name: Translation.tr("Triadic"), icon: "change_history" },
+                        { id: "split", name: Translation.tr("Split"), icon: "call_split" }
+                    ]
+
+                    RippleButton {
+                        required property var modelData
+                        required property int index
+
+                        implicitWidth: schemeRow.implicitWidth + 16
+                        implicitHeight: 32
+                        buttonRadius: 16
+                        toggled: parent.selectedScheme === modelData.id
+                        colBackground: toggled ? Appearance.colors.colPrimaryContainer : Appearance.colors.colLayer2
+                        colBackgroundHover: toggled ? Appearance.colors.colPrimaryContainerHover : Appearance.colors.colLayer2Hover
+
+                        onClicked: parent.selectedScheme = modelData.id
+
+                        contentItem: RowLayout {
+                            id: schemeRow
+                            anchors.centerIn: parent
+                            spacing: 4
+
+                            MaterialSymbol {
+                                text: modelData.icon
+                                iconSize: 14
+                                color: parent.parent.toggled ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colOnLayer2
+                            }
+
+                            StyledText {
+                                text: modelData.name
+                                font.pixelSize: Appearance.font.pixelSize.smallest
+                                color: parent.parent.toggled ? Appearance.colors.colOnPrimaryContainer : Appearance.colors.colOnLayer2
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Preview of generated colors
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                StyledText {
+                    text: Translation.tr("Preview:")
+                    font.pixelSize: Appearance.font.pixelSize.smallest
+                    color: Appearance.colors.colSubtext
+                }
+
+                // Primary (source)
+                Rectangle {
+                    width: 24
+                    height: 24
+                    radius: 12
+                    color: Config.options?.appearance?.customTheme?.m3primary ?? Appearance.m3colors.m3primary
+                    border.width: 2
+                    border.color: Appearance.colors.colOnLayer1
+
+                    MouseArea { id: primaryMouse; anchors.fill: parent; hoverEnabled: true }
+                    StyledToolTip { text: Translation.tr("Primary (source)"); visible: primaryMouse.containsMouse }
+                }
+
+                MaterialSymbol {
+                    text: "arrow_forward"
+                    iconSize: 14
+                    color: Appearance.colors.colSubtext
+                }
+
+                // Generated secondary
+                Rectangle {
+                    id: previewSecondary
+                    width: 24
+                    height: 24
+                    radius: 12
+                    color: root.getHarmonyColor("secondary")
+
+                    MouseArea { id: secondaryMouse; anchors.fill: parent; hoverEnabled: true }
+                    StyledToolTip { text: Translation.tr("Secondary (generated)"); visible: secondaryMouse.containsMouse }
+                }
+
+                // Generated tertiary
+                Rectangle {
+                    id: previewTertiary
+                    width: 24
+                    height: 24
+                    radius: 12
+                    color: root.getHarmonyColor("tertiary")
+
+                    MouseArea { id: tertiaryMouse; anchors.fill: parent; hoverEnabled: true }
+                    StyledToolTip { text: Translation.tr("Tertiary (generated)"); visible: tertiaryMouse.containsMouse }
+                }
+
+                Item { Layout.fillWidth: true }
+
+                // Apply button
+                RippleButton {
+                    implicitWidth: applyRow.implicitWidth + 20
+                    implicitHeight: 32
+                    buttonRadius: 16
+                    colBackground: Appearance.colors.colPrimary
+                    colBackgroundHover: Appearance.colors.colPrimaryHover
+
+                    onClicked: root.applyHarmonyColors()
+
+                    contentItem: RowLayout {
+                        id: applyRow
+                        anchors.centerIn: parent
+                        spacing: 4
+
+                        MaterialSymbol {
+                            text: "auto_awesome"
+                            iconSize: 14
+                            color: Appearance.colors.colOnPrimary
+                        }
+
+                        StyledText {
+                            text: Translation.tr("Apply")
+                            font.pixelSize: Appearance.font.pixelSize.smallest
+                            color: Appearance.colors.colOnPrimary
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    property string _harmonyScheme: "complementary"
+
+    function getHarmonyColor(role) {
+        const primary = Config.options?.appearance?.customTheme?.m3primary ?? Appearance.m3colors.m3primary
+        const scheme = harmonyColumn.children[2]?.selectedScheme ?? "complementary"
+
+        if (scheme === "complementary") {
+            // Complementary: secondary = complement, tertiary = shifted complement
+            const comp = ColorUtils.complementary(primary)
+            return role === "secondary" ? comp : ColorUtils.shiftHue(comp, 30)
+        } else if (scheme === "analogous") {
+            // Analogous: colors adjacent on wheel
+            const colors = ColorUtils.analogous(primary, 30)
+            return role === "secondary" ? colors[0] : colors[1]
+        } else if (scheme === "triadic") {
+            // Triadic: evenly spaced (120°)
+            const colors = ColorUtils.triadic(primary)
+            return role === "secondary" ? colors[0] : colors[1]
+        } else if (scheme === "split") {
+            // Split complementary
+            const colors = ColorUtils.splitComplementary(primary)
+            return role === "secondary" ? colors[0] : colors[1]
+        }
+        return primary
+    }
+
+    function applyHarmonyColors(): void {
+        const secondary = getHarmonyColor("secondary")
+        const tertiary = getHarmonyColor("tertiary")
+
+        // Apply secondary colors
+        Config.setNestedValue('appearance.customTheme.m3secondary', secondary.toString())
+        Config.setNestedValue('appearance.customTheme.m3onSecondary', ColorUtils.contrastColor(secondary).toString())
+        const secondaryContainer = ColorUtils.colorWithLightness(secondary, (Config.options?.appearance?.customTheme?.darkmode ?? true) ? 0.25 : 0.85)
+        Config.setNestedValue('appearance.customTheme.m3secondaryContainer', secondaryContainer.toString())
+        Config.setNestedValue('appearance.customTheme.m3onSecondaryContainer', ColorUtils.contrastColor(secondaryContainer).toString())
+
+        // Apply tertiary colors
+        Config.setNestedValue('appearance.customTheme.m3tertiary', tertiary.toString())
+        Config.setNestedValue('appearance.customTheme.m3onTertiary', ColorUtils.contrastColor(tertiary).toString())
+        const tertiaryContainer = ColorUtils.colorWithLightness(tertiary, (Config.options?.appearance?.customTheme?.darkmode ?? true) ? 0.25 : 0.85)
+        Config.setNestedValue('appearance.customTheme.m3tertiaryContainer', tertiaryContainer.toString())
+        Config.setNestedValue('appearance.customTheme.m3onTertiaryContainer', ColorUtils.contrastColor(tertiaryContainer).toString())
+
+        applyToShell()
+    }
 
     // Actions row: Preset selector (like FontSelector) + Export/Import
     RowLayout {
@@ -1093,7 +1547,14 @@ ColumnLayout {
     }
 
     function copyPreset(colors) {
-        for (let key in colors) Config.options.appearance.customTheme[key] = colors[key]
+        for (let key in colors) {
+            Config.setNestedValue(`appearance.customTheme.${key}`, colors[key])
+        }
+        // Reset quick adjustments when loading a preset
+        originalColors = null
+        saturationSlider.value = 100
+        brightnessSlider.value = 0
+        temperatureSlider.value = 0
         applyToShell()
     }
 
@@ -1105,13 +1566,26 @@ ColumnLayout {
                 importDialog.importError = Translation.tr("Invalid theme: missing required color properties")
                 return false
             }
+            const customTheme = Config.options?.appearance?.customTheme ?? {}
             for (let key in imported) {
-                if (Config.options.appearance.customTheme.hasOwnProperty(key))
-                    Config.options.appearance.customTheme[key] = imported[key]
+                if (customTheme.hasOwnProperty(key)) {
+                    // Validate color format
+                    const value = imported[key]
+                    if (typeof value === "string" && (value.startsWith("#") || value === "true" || value === "false")) {
+                        Config.setNestedValue(`appearance.customTheme.${key}`, value)
+                    } else if (typeof value === "boolean") {
+                        Config.setNestedValue(`appearance.customTheme.${key}`, value)
+                    }
+                }
             }
+            // Reset quick adjustments
+            originalColors = null
+            saturationSlider.value = 100
+            brightnessSlider.value = 0
+            temperatureSlider.value = 0
             applyToShell()
             return true
-        } catch (e) { 
+        } catch (e) {
             importDialog.importError = Translation.tr("Invalid JSON format: ") + e.message
             return false
         }
@@ -1354,9 +1828,9 @@ ColumnLayout {
         accentKey: "m3primary"
         colors: [
             { label: "Accent", key: "m3primary", tip: "Main accent for buttons and links" },
-            { label: "Text", key: "m3onPrimary", tip: "Text color on accent buttons" },
+            { label: "Text", key: "m3onPrimary", tip: "Text color on accent buttons", contrastAgainst: "m3primary" },
             { label: "Soft BG", key: "m3primaryContainer", tip: "Subtle accent backgrounds" },
-            { label: "Soft Text", key: "m3onPrimaryContainer", tip: "Text on subtle backgrounds" }
+            { label: "Soft Text", key: "m3onPrimaryContainer", tip: "Text on subtle backgrounds", contrastAgainst: "m3primaryContainer" }
         ]
     }
 
@@ -1367,9 +1841,9 @@ ColumnLayout {
         accentKey: "m3secondary"
         colors: [
             { label: "Color", key: "m3secondary", tip: "Secondary accent color" },
-            { label: "Text", key: "m3onSecondary", tip: "Text on secondary" },
+            { label: "Text", key: "m3onSecondary", tip: "Text on secondary", contrastAgainst: "m3secondary" },
             { label: "Soft BG", key: "m3secondaryContainer", tip: "Chip and tag backgrounds" },
-            { label: "Soft Text", key: "m3onSecondaryContainer", tip: "Text on chips and tags" }
+            { label: "Soft Text", key: "m3onSecondaryContainer", tip: "Text on chips and tags", contrastAgainst: "m3secondaryContainer" }
         ]
     }
 
@@ -1380,9 +1854,9 @@ ColumnLayout {
         accentKey: "m3tertiary"
         colors: [
             { label: "Color", key: "m3tertiary", tip: "Third accent color" },
-            { label: "Text", key: "m3onTertiary", tip: "Text on tertiary" },
+            { label: "Text", key: "m3onTertiary", tip: "Text on tertiary", contrastAgainst: "m3tertiary" },
             { label: "Soft BG", key: "m3tertiaryContainer", tip: "Tertiary backgrounds" },
-            { label: "Soft Text", key: "m3onTertiaryContainer", tip: "Text on tertiary bg" }
+            { label: "Soft Text", key: "m3onTertiaryContainer", tip: "Text on tertiary bg", contrastAgainst: "m3tertiaryContainer" }
         ]
     }
 
@@ -1394,8 +1868,8 @@ ColumnLayout {
         colors: [
             { label: "Base BG", key: "m3background", tip: "Deepest background layer" },
             { label: "Surface", key: "m3surface", tip: "Card and panel backgrounds" },
-            { label: "Main Text", key: "m3onSurface", tip: "Primary text color" },
-            { label: "BG Text", key: "m3onBackground", tip: "Text on base background" }
+            { label: "Main Text", key: "m3onSurface", tip: "Primary text color", contrastAgainst: "m3surface" },
+            { label: "BG Text", key: "m3onBackground", tip: "Text on base background", contrastAgainst: "m3background" }
         ]
     }
 
@@ -1619,16 +2093,61 @@ ColumnLayout {
                         Layout.fillWidth: true
                         implicitHeight: swatchColumn.implicitHeight
 
+                        // Contrast calculation
+                        readonly property string contrastKey: modelData.contrastAgainst ?? ""
+                        readonly property color fgColor: Config.options.appearance.customTheme?.[modelData.key] ?? "#888"
+                        readonly property color bgColor: contrastKey ? (Config.options.appearance.customTheme?.[contrastKey] ?? "#000") : "#000"
+                        readonly property real ratio: contrastKey ? ColorUtils.contrastRatio(fgColor, bgColor) : 0
+                        readonly property bool showContrast: contrastKey !== ""
+
                         ColumnLayout {
                             id: swatchColumn
                             anchors.fill: parent
                             spacing: 4
 
-                            // Label
-                            StyledText {
-                                text: modelData.label
-                                font.pixelSize: Appearance.font.pixelSize.smallest
-                                color: Appearance.colors.colSubtext
+                            // Label with contrast indicator
+                            RowLayout {
+                                spacing: 4
+
+                                StyledText {
+                                    text: modelData.label
+                                    font.pixelSize: Appearance.font.pixelSize.smallest
+                                    color: Appearance.colors.colSubtext
+                                }
+
+                                // Contrast badge
+                                Rectangle {
+                                    visible: swatchItem.showContrast
+                                    implicitWidth: contrastBadge.implicitWidth + 6
+                                    implicitHeight: 14
+                                    radius: 7
+                                    color: swatchItem.ratio >= 4.5 ? "#1a3a1a" : swatchItem.ratio >= 3 ? "#3a3a1a" : "#3a1a1a"
+
+                                    RowLayout {
+                                        id: contrastBadge
+                                        anchors.centerIn: parent
+                                        spacing: 2
+
+                                        MaterialSymbol {
+                                            text: swatchItem.ratio >= 4.5 ? "check" : "warning"
+                                            iconSize: 8
+                                            color: swatchItem.ratio >= 4.5 ? "#a8d8a8" : swatchItem.ratio >= 3 ? "#d8d8a8" : "#d8a8a8"
+                                        }
+
+                                        StyledText {
+                                            text: swatchItem.ratio.toFixed(1)
+                                            font.pixelSize: 8
+                                            font.family: Appearance.font.family.monospace
+                                            color: swatchItem.ratio >= 4.5 ? "#a8d8a8" : swatchItem.ratio >= 3 ? "#d8d8a8" : "#d8a8a8"
+                                        }
+                                    }
+
+                                    StyledToolTip {
+                                        text: swatchItem.ratio >= 4.5 ? Translation.tr("WCAG AA ✓ Good contrast")
+                                            : swatchItem.ratio >= 3 ? Translation.tr("Low contrast - may be hard to read")
+                                            : Translation.tr("Poor contrast - fails accessibility")
+                                    }
+                                }
                             }
 
                             // Color button (like FontSelector dropdown)
@@ -1681,6 +2200,7 @@ ColumnLayout {
 
                                 StyledToolTip {
                                     text: modelData.tip ?? ""
+                                    visible: parent.buttonHovered && (modelData.tip ?? "").length > 0
                                 }
                             }
                         }
@@ -1699,7 +2219,7 @@ ColumnLayout {
             selectedColor: paletteCard.dialogColor
             onAccepted: {
                 if (paletteCard.dialogKey !== "") {
-                    Config.options.appearance.customTheme[paletteCard.dialogKey] = selectedColor.toString()
+                    Config.setNestedValue(`appearance.customTheme.${paletteCard.dialogKey}`, selectedColor.toString())
                     root.applyToShell()
                 }
             }

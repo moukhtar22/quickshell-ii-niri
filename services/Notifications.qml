@@ -444,14 +444,17 @@ Singleton {
         console.log("Notification server index: " + notifServerIndex);
         if (notifServerIndex !== -1) {
             const notifServerNotif = notifServer.trackedNotifications.values[notifServerIndex];
-            const action = notifServerNotif.actions.find((action) => action.identifier === notifIdentifier);
-            // console.log("Action found: " + JSON.stringify(action));
-            action.invoke()
+            const action = notifServerNotif?.actions?.find((action) => action.identifier === notifIdentifier);
 
-            if (root._isViewLikeAction(action?.text)) {
-                root._focusOrLaunchFromNotifServerNotif(notifServerNotif)
+            if (action) {
+                action.invoke()
+                if (root._isViewLikeAction(action.text)) {
+                    root._focusOrLaunchFromNotifServerNotif(notifServerNotif)
+                }
+            } else {
+                console.warn("[Notifications] Action not found: " + notifIdentifier)
             }
-        } 
+        }
         else {
             console.log("Notification not found in server: " + id)
         }
@@ -560,6 +563,9 @@ Singleton {
         onLoadFailed: (error) => {
             if(error == FileViewError.FileNotFound) {
                 console.log("[Notifications] File not found, creating new file.")
+                // Ensure parent directory exists
+                const parentDir = root.filePath.substring(0, root.filePath.lastIndexOf('/'))
+                Process.exec(["/usr/bin/mkdir", "-p", parentDir])
                 root.list = []
                 notifFileView.setText(stringifyList(root.list));
             } else {

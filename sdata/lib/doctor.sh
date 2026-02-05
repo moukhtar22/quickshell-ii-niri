@@ -30,34 +30,81 @@ doctor_fix() {
 
 check_dependencies() {
     local missing=()
+    local missing_cmds=()
+    
+    # Commands to check (command:friendly_name)
+    # These are distro-agnostic - we check for the command, not the package
     local cmds=(
-        "qs:quickshell-git"
-        "niri:niri"
-        "nmcli:networkmanager"
-        "wpctl:wireplumber"
+        "qs:Quickshell"
+        "niri:Niri"
+        "nmcli:NetworkManager"
+        "wpctl:WirePlumber"
         "jq:jq"
-        "matugen:matugen-bin"
+        "matugen:matugen"
         "wlsunset:wlsunset"
         "dunstify:dunst"
         "fish:fish"
-        "easyeffects:easyeffects"
-        "magick:imagemagick"
-        "uv:uv"
+        "magick:ImageMagick"
+        "swaylock:swaylock"
+        "grim:grim"
+        "mpv:mpv"
     )
     
+    # Optional but recommended
+    local optional_cmds=(
+        "easyeffects:EasyEffects"
+        "uv:uv"
+        "cava:cava"
+        "qalc:qalculate"
+        "yt-dlp:yt-dlp"
+        "blueman-manager:Blueman"
+        "kwriteconfig6:KConfig"
+    )
+    
+    # Check required commands
     for item in "${cmds[@]}"; do
         local cmd="${item%%:*}"
-        local pkg="${item##*:}"
-        command -v "$cmd" &>/dev/null || missing+=("$pkg")
+        local name="${item##*:}"
+        if ! command -v "$cmd" &>/dev/null; then
+            missing+=("$name")
+            missing_cmds+=("$cmd")
+        fi
+    done
+    
+    # Check optional commands (warn but don't fail)
+    local optional_missing=()
+    for item in "${optional_cmds[@]}"; do
+        local cmd="${item%%:*}"
+        local name="${item##*:}"
+        command -v "$cmd" &>/dev/null || optional_missing+=("$name")
     done
     
     if [[ ${#missing[@]} -eq 0 ]]; then
         doctor_missing_deps=()
-        doctor_pass "All required commands available"
+        if [[ ${#optional_missing[@]} -gt 0 ]]; then
+            doctor_pass "Required commands OK (optional missing: ${optional_missing[*]})"
+        else
+            doctor_pass "All required commands available"
+        fi
     else
         doctor_missing_deps=("${missing[@]}")
         doctor_fail "Missing: ${missing[*]}"
-        echo -e "    ${STY_FAINT}Run: yay -S ${missing[*]}${STY_RST}"
+        
+        # Provide distro-specific install hints
+        case "${OS_GROUP_ID:-unknown}" in
+            arch)
+                echo -e "    ${STY_FAINT}Run: yay -S ${missing_cmds[*]}${STY_RST}"
+                ;;
+            fedora)
+                echo -e "    ${STY_FAINT}Run: sudo dnf install ... (see ./setup install)${STY_RST}"
+                ;;
+            debian|ubuntu)
+                echo -e "    ${STY_FAINT}Run: sudo apt install ... (see ./setup install)${STY_RST}"
+                ;;
+            *)
+                echo -e "    ${STY_FAINT}Install these tools using your package manager${STY_RST}"
+                ;;
+        esac
     fi
 }
 
@@ -251,6 +298,27 @@ check_quickshell_loads() {
     return 0
 }
 
+check_matugen_colors() {
+    local colors_file="${XDG_STATE_HOME:-$HOME/.local/state}/quickshell/user/generated/material_colors.scss"
+    local darkly_file="${HOME}/.local/share/color-schemes/Darkly.colors"
+    
+    if [[ ! -f "$colors_file" ]]; then
+        doctor_fail "Material colors not generated"
+        echo -e "    ${STY_FAINT}Run: matugen image /path/to/wallpaper.png${STY_RST}"
+        echo -e "    ${STY_FAINT}Or: Set wallpaper via ii settings${STY_RST}"
+        return 1
+    fi
+    
+    if [[ ! -f "$darkly_file" ]]; then
+        doctor_fail "Darkly Qt colors not generated"
+        echo -e "    ${STY_FAINT}Run: bash ~/.config/quickshell/ii/scripts/colors/apply-gtk-theme.sh${STY_RST}"
+        return 1
+    fi
+    
+    doctor_pass "Theme colors generated"
+    return 0
+}
+
 ###############################################################################
 # Main
 ###############################################################################
@@ -260,46 +328,56 @@ run_doctor_with_fixes() {
     doctor_failed=0
     doctor_fixed=0
     
-    tui_step 1 10 "Checking dependencies"
+    tui_step 1 11 "Checking dependencies"
     check_dependencies
 
     if [[ ${#doctor_missing_deps[@]} -gt 0 ]]; then
         detect_distro
-        if [[ "$OS_GROUP_ID" == "arch" ]]; then
-            if ! $ask || tui_confirm "Install missing dependencies now?"; then
-                SKIP_SYSUPDATE=true
-                ONLY_MISSING_DEPS="${doctor_missing_deps[*]}"
-                source ./sdata/subcmd-install/1.deps-router.sh
-                check_dependencies
-            fi
-        fi
+        case "$OS_GROUP_ID" in
+            arch|fedora|debian|ubuntu)
+                if ! $ask || tui_confirm "Install missing dependencies now?"; then
+                    SKIP_SYSUPDATE=true
+                    ONLY_MISSING_DEPS="${doctor_missing_deps[*]}"
+                    source ./sdata/subcmd-install/1.deps-router.sh
+                    check_dependencies
+                fi
+                ;;
+            *)
+                echo -e "${STY_YELLOW}Automatic dependency installation not available for ${OS_GROUP_ID}.${STY_RST}"
+                echo -e "${STY_YELLOW}Please install missing dependencies manually.${STY_RST}"
+                ;;
+        esac
     fi
     
-    tui_step 2 10 "Checking critical files"
+    tui_step 2 11 "Checking critical files"
     check_critical_files
     
-    tui_step 3 10 "Checking script permissions"
+    tui_step 3 11 "Checking script permissions"
     check_script_permissions
     
-    tui_step 4 10 "Checking user config"
+    tui_step 4 11 "Checking user config"
     check_user_config
     
-    tui_step 5 10 "Checking state directories"
+    tui_step 5 11 "Checking state directories"
     check_state_directories
     
-    tui_step 6 10 "Checking version tracking"
+    tui_step 6 11 "Checking version tracking"
     check_version_tracking
     
-    tui_step 7 10 "Checking file manifest"
+    tui_step 7 11 "Checking file manifest"
     check_manifest
     
-    tui_step 8 10 "Checking Niri compositor"
+    tui_step 8 11 "Checking Niri compositor"
     check_niri_running
     
-    tui_step 9 10 "Checking Python packages"
+    tui_step 9 11 "Checking Python packages"
     check_python_packages
     
-    tui_step 10 10 "Checking Quickshell"
+    tui_step 10 11 "Checking Quickshell"
+    check_quickshell_loads
+    
+    tui_step 11 11 "Checking theme colors"
+    check_matugen_colors
     check_quickshell_loads
     
     echo ""

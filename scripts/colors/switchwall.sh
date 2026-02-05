@@ -154,10 +154,34 @@ start_mpvpaper_for_all_outputs() {
         return 1
     fi
 
-    for output in $outputs; do
-        mpvpaper -o "$VIDEO_OPTS" "$output" "$video_path" &
-        sleep 0.1
-    done
+    # Create a detached launcher script to ensure mpvpaper survives parent termination
+    local launcher_script="$RESTORE_SCRIPT_DIR/.mpvpaper_launcher_$$.sh"
+    cat > "$launcher_script" << 'LAUNCHER_EOF'
+#!/bin/bash
+video_path="$1"
+shift
+outputs="$@"
+VIDEO_OPTS="no-audio loop hwdec=auto scale=bilinear interpolation=no video-sync=display-resample panscan=1.0 video-scale-x=1.0 video-scale-y=1.0 video-align-x=0.5 video-align-y=0.5 load-scripts=no"
+for output in $outputs; do
+    nohup mpvpaper -o "$VIDEO_OPTS" "$output" "$video_path" > /dev/null 2>&1 &
+    disown
+    sleep 0.2
+done
+LAUNCHER_EOF
+    chmod +x "$launcher_script"
+    
+    # Execute launcher in a completely detached way using at if available, otherwise nohup
+    if command -v at >/dev/null 2>&1; then
+        echo "$launcher_script '$video_path' $outputs" | at now 2>/dev/null
+    else
+        (nohup "$launcher_script" "$video_path" $outputs > /dev/null 2>&1 &)
+    fi
+    
+    # Small delay to let the launcher start
+    sleep 0.3
+    
+    # Clean up launcher script after a delay
+    (sleep 5 && rm -f "$launcher_script") &
 }
 
 create_restore_script() {
@@ -197,6 +221,13 @@ set_thumbnail_path() {
     local path="$1"
     if [ -f "$SHELL_CONFIG_FILE" ]; then
         jq --arg path "$path" '.background.thumbnailPath = $path' "$SHELL_CONFIG_FILE" > "$SHELL_CONFIG_FILE.tmp" && mv "$SHELL_CONFIG_FILE.tmp" "$SHELL_CONFIG_FILE"
+    fi
+}
+
+set_backdrop_thumbnail_path() {
+    local path="$1"
+    if [ -f "$SHELL_CONFIG_FILE" ]; then
+        jq --arg path "$path" '.background.backdrop.thumbnailPath = $path' "$SHELL_CONFIG_FILE" > "$SHELL_CONFIG_FILE.tmp" && mv "$SHELL_CONFIG_FILE.tmp" "$SHELL_CONFIG_FILE"
     fi
 }
 
@@ -248,54 +279,46 @@ switch() {
         if is_video "$imgpath"; then
             mkdir -p "$THUMBNAIL_DIR"
 
-            missing_deps=()
-            if ! command -v mpvpaper &> /dev/null; then
-                missing_deps+=("mpvpaper")
-            fi
+            # Only check for ffmpeg (needed for thumbnail generation)
+            # mpvpaper is no longer needed - Qt Multimedia handles video playback natively
             if ! command -v ffmpeg &> /dev/null; then
-                missing_deps+=("ffmpeg")
-            fi
-            if [ ${#missing_deps[@]} -gt 0 ]; then
-                echo "Missing deps: ${missing_deps[*]}"
-                echo "Arch: sudo pacman -S ${missing_deps[*]}"
+                echo "Missing dependency: ffmpeg"
+                echo "Arch: sudo pacman -S ffmpeg"
                 action=$(notify-send \
                     -a "Wallpaper switcher" \
                     -c "im.error" \
                     -A "install_arch=Install (Arch)" \
                     "Can't switch to video wallpaper" \
-                    "Missing dependencies: ${missing_deps[*]}")
+                    "Missing dependency: ffmpeg (needed for thumbnail generation)")
                 if [[ "$action" == "install_arch" ]]; then
-                    kitty -1 sudo pacman -S "${missing_deps[*]}"
-                    if command -v mpvpaper &>/dev/null && command -v ffmpeg &>/dev/null; then
+                    kitty -1 sudo pacman -S ffmpeg
+                    if command -v ffmpeg &>/dev/null; then
                         notify-send 'Wallpaper switcher' 'Alright, try again!' -a "Wallpaper switcher"
                     fi
                 fi
                 exit 0
             fi
 
-            # Set wallpaper path
-            set_wallpaper_path "$imgpath"
-
-            # Set video wallpaper (Niri o Hyprland)
-            local video_path="$imgpath"
-            start_mpvpaper_for_all_outputs "$video_path" || echo "[switchwall.sh] Failed to start mpvpaper for video wallpaper" >&2
-
-            # Extract first frame for color generation
+            # Extract first frame for thumbnail (used for color generation)
             thumbnail="$THUMBNAIL_DIR/$(basename "$imgpath").jpg"
             ffmpeg -y -i "$imgpath" -vframes 1 "$thumbnail" 2>/dev/null
 
-            # Set thumbnail path
-            set_thumbnail_path "$thumbnail"
-
-            if [ -f "$thumbnail" ]; then
-                matugen_args=(image "$thumbnail")
-                generate_colors_material_args=(--path "$thumbnail")
-                create_restore_script "$video_path"
-            else
-                echo "Cannot create image to colorgen"
+            if [ ! -f "$thumbnail" ]; then
+                echo "Cannot create thumbnail for color generation"
                 remove_restore
                 exit 1
             fi
+
+            # Set wallpaper path (Qt Multimedia Video component will handle playback)
+            set_wallpaper_path "$imgpath"
+            
+            # Set thumbnail path (used for color generation and as fallback)
+            set_thumbnail_path "$thumbnail"
+
+            # Use thumbnail for color generation
+            matugen_args=(image "$thumbnail")
+            generate_colors_material_args=(--path "$thumbnail")
+            create_restore_script "$imgpath"
         else
             matugen_args=(image "$imgpath")
             generate_colors_material_args=(--path "$imgpath")
@@ -339,18 +362,31 @@ switch() {
         fi
     fi
 
-    # Set harmony and related properties
+    # Set harmony and related properties from terminalColorAdjustments
     if [ -f "$SHELL_CONFIG_FILE" ]; then
-        harmony=$(jq -r '.appearance.wallpaperTheming.terminalGenerationProps.harmony' "$SHELL_CONFIG_FILE")
-        harmonize_threshold=$(jq -r '.appearance.wallpaperTheming.terminalGenerationProps.harmonizeThreshold' "$SHELL_CONFIG_FILE")
-        term_fg_boost=$(jq -r '.appearance.wallpaperTheming.terminalGenerationProps.termFgBoost' "$SHELL_CONFIG_FILE")
-        [[ "$harmony" != "null" && -n "$harmony" ]] && generate_colors_material_args+=(--harmony "$harmony")
+        # Read from terminalColorAdjustments (the unified config)
+        term_saturation=$(jq -r '.appearance.wallpaperTheming.terminalColorAdjustments.saturation // 0.40' "$SHELL_CONFIG_FILE")
+        term_brightness=$(jq -r '.appearance.wallpaperTheming.terminalColorAdjustments.brightness // 0.55' "$SHELL_CONFIG_FILE")
+        term_harmony=$(jq -r '.appearance.wallpaperTheming.terminalColorAdjustments.harmony // 0.15' "$SHELL_CONFIG_FILE")
+        
+        # Legacy props for backwards compatibility
+        harmonize_threshold=$(jq -r '.appearance.wallpaperTheming.terminalGenerationProps.harmonizeThreshold // 100' "$SHELL_CONFIG_FILE")
+        soften_colors=$(jq -r '.appearance.softenColors' "$SHELL_CONFIG_FILE")
+        
+        # Pass new parameters to Python script
+        [[ "$term_saturation" != "null" && -n "$term_saturation" ]] && generate_colors_material_args+=(--term_saturation "$term_saturation")
+        [[ "$term_brightness" != "null" && -n "$term_brightness" ]] && generate_colors_material_args+=(--term_brightness "$term_brightness")
+        [[ "$term_harmony" != "null" && -n "$term_harmony" ]] && generate_colors_material_args+=(--harmony "$term_harmony")
         [[ "$harmonize_threshold" != "null" && -n "$harmonize_threshold" ]] && generate_colors_material_args+=(--harmonize_threshold "$harmonize_threshold")
-        [[ "$term_fg_boost" != "null" && -n "$term_fg_boost" ]] && generate_colors_material_args+=(--term_fg_boost "$term_fg_boost")
+        [[ "$soften_colors" == "true" ]] && generate_colors_material_args+=(--soften)
     fi
 
     matugen "${matugen_args[@]}"
-    source "$(eval echo $ILLOGICAL_IMPULSE_VIRTUAL_ENV)/bin/activate"
+    source "$(eval echo $ILLOGICAL_IMPULSE_VIRTUAL_ENV)/bin/activate" 2>/dev/null || true
+    
+    # Generate colors with soften applied (overwrites matugen's colors.json if soften is enabled)
+    generate_colors_material_args+=(--json-output "$STATE_DIR/user/generated/colors.json")
+    
     python3 "$SCRIPT_DIR/generate_colors_material.py" "${generate_colors_material_args[@]}" \
         > "$STATE_DIR"/user/generated/material_colors.scss
     
@@ -362,7 +398,7 @@ switch() {
     fi
     
     "$SCRIPT_DIR"/applycolor.sh
-    deactivate
+    deactivate 2>/dev/null || true
 
     # Pass screen width, height, and wallpaper path to post_process
     read max_width_desired max_height_desired <<< "$(get_max_monitor_resolution)"
@@ -392,9 +428,9 @@ main() {
 
     detect_scheme_type_from_image() {
         local img="$1"
-        source "$(eval echo $ILLOGICAL_IMPULSE_VIRTUAL_ENV)/bin/activate"
+        source "$(eval echo $ILLOGICAL_IMPULSE_VIRTUAL_ENV)/bin/activate" 2>/dev/null || true
         "$SCRIPT_DIR"/scheme_for_image.py "$img" 2>/dev/null | tr -d '\n'
-        deactivate
+        deactivate 2>/dev/null || true
     }
 
     while [[ $# -gt 0 ]]; do

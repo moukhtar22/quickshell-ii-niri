@@ -81,6 +81,15 @@ ApplicationWindow {
     
     Component.onCompleted: {
         Config.readWriteDelay = 0
+        const startPage = Quickshell.env("QS_SETTINGS_PAGE");
+        if (startPage) root.currentPage = parseInt(startPage);
+
+        const startSection = Quickshell.env("QS_SETTINGS_SECTION");
+        if (startSection) {
+            root.pendingSpotlightSection = startSection;
+            root.pendingSpotlightPageIndex = root.currentPage;
+            root.trySpotlight();
+        }
     }
     
     Connections {

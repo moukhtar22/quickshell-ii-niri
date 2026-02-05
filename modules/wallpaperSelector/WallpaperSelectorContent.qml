@@ -58,18 +58,42 @@ MouseArea {
             const configTarget = Config.options?.wallpaperSelector?.selectionTarget;
             let target = (configTarget && configTarget !== "main") ? configTarget : GlobalStates.wallpaperSelectionTarget;
             
+            // Check if it's a video or GIF that needs thumbnail generation
+            const lowerPath = normalizedPath.toLowerCase();
+            const isVideo = lowerPath.endsWith(".mp4") || lowerPath.endsWith(".webm") || lowerPath.endsWith(".mkv") || lowerPath.endsWith(".avi") || lowerPath.endsWith(".mov");
+            const isGif = lowerPath.endsWith(".gif");
+            const needsThumbnail = isVideo || isGif;
+            
             switch (target) {
                 case "backdrop":
                     Config.setNestedValue("background.backdrop.useMainWallpaper", false);
                     Config.setNestedValue("background.backdrop.wallpaperPath", normalizedPath);
+                    // Generate and set thumbnail for video/GIF
+                    if (needsThumbnail) {
+                        Wallpapers.generateThumbnail("large"); // Ensure generation is triggered
+                        const thumbnailPath = Wallpapers.getExpectedThumbnailPath(normalizedPath, "large");
+                        Config.setNestedValue("background.backdrop.thumbnailPath", thumbnailPath);
+                    }
                     break;
                 case "waffle":
                     Config.setNestedValue("waffles.background.useMainWallpaper", false);
                     Config.setNestedValue("waffles.background.wallpaperPath", normalizedPath);
+                    // Generate and set thumbnail for video/GIF (used as fallback/preview)
+                    if (needsThumbnail) {
+                        Wallpapers.generateThumbnail("large");
+                        const thumbnailPath = Wallpapers.getExpectedThumbnailPath(normalizedPath, "large");
+                        Config.setNestedValue("waffles.background.thumbnailPath", thumbnailPath);
+                    }
                     break;
                 case "waffle-backdrop":
                     Config.setNestedValue("waffles.background.backdrop.useMainWallpaper", false);
                     Config.setNestedValue("waffles.background.backdrop.wallpaperPath", normalizedPath);
+                    // Generate and set thumbnail for video/GIF
+                    if (needsThumbnail) {
+                        Wallpapers.generateThumbnail("large");
+                        const thumbnailPath = Wallpapers.getExpectedThumbnailPath(normalizedPath, "large");
+                        Config.setNestedValue("waffles.background.backdrop.thumbnailPath", thumbnailPath);
+                    }
                     break;
                 default: // "main"
                     Wallpapers.select(normalizedPath, root.useDarkMode);

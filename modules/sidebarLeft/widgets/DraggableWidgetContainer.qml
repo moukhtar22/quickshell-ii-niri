@@ -226,9 +226,10 @@ Item {
                     anchors.fill: parent
                     
                     // Elevated shadow when dragging
-                    RectangularShadow {
-                        anchors.fill: contentLoader
-                        radius: contentLoader.item?.radius ?? Appearance.rounding.small
+                    StyledRectangularShadow {
+                        target: contentLoader // StyledRectangularShadow requires target property
+                        // anchors.fill not needed if target is set (anchors to target)
+                        anchors.fill: contentLoader 
                         opacity: widgetWrapper.isBeingDragged ? 0.5 : 0
                         blur: 24
                         spread: 0.15

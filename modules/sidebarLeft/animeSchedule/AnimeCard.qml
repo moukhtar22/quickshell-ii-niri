@@ -34,7 +34,7 @@ RippleButton {
     colBackgroundToggled: colBackgroundHover
     colBackgroundToggledHover: colRipple
     
-    // Left click -> MAL
+    // Left click -> AniList page
     onClicked: {
         if (root.anime?.url) {
             Qt.openUrlExternally(root.anime.url)
@@ -49,14 +49,14 @@ RippleButton {
         return text.length <= maxLen ? text : text.substring(0, maxLen).trim() + "..."
     }
     
-    // HiAnime - best free streaming, fast, no ads with ublock
-    function getHiAnimeUrl() {
+    // Custom watch site from config, or HiAnime as default
+    function getWatchUrl() {
         const title = root.anime?.title ?? ""
+        const customSite = Config.options?.sidebar?.animeSchedule?.watchSite ?? ""
+        if (customSite) {
+            return customSite.replace("%s", encodeURIComponent(title))
+        }
         return "https://hianime.to/search?keyword=" + encodeURIComponent(title)
-    }
-    
-    function getAniListUrl() {
-        return "https://anilist.co/search/anime?search=" + encodeURIComponent(root.anime?.title ?? "")
     }
     
     ContextMenu {
@@ -68,10 +68,9 @@ RippleButton {
         anchorHovered: root.buttonHovered
         
         model: [
-            { text: Translation.tr("Watch on HiAnime"), iconName: "play_circle", action: () => Qt.openUrlExternally(root.getHiAnimeUrl()) },
-            { text: Translation.tr("View on AniList"), iconName: "bookmark", action: () => Qt.openUrlExternally(root.getAniListUrl()) },
+            { text: Translation.tr("Watch"), iconName: "play_circle", monochromeIcon: true, action: () => Qt.openUrlExternally(root.getWatchUrl()) },
             { type: "separator" },
-            { text: Translation.tr("Open on MAL"), iconName: "open_in_new", action: () => Qt.openUrlExternally(root.anime?.url ?? "") }
+            { text: Translation.tr("Open on AniList"), iconName: "open_in_new", monochromeIcon: true, action: () => Qt.openUrlExternally(root.anime?.url ?? "") }
         ]
     }
     

@@ -42,9 +42,33 @@ adjust_color() {
     printf "#%02x%02x%02x" $r $g $b
 }
 
-BG_ALT=$(adjust_color "$BG" 20)
-BG_DARK=$(adjust_color "$BG" -20)
-FG_INACTIVE=$(adjust_color "$FG" -60)
+avg_brightness() {
+    local hex="${1#\#}"
+    local r=$((0x${hex:0:2}))
+    local g=$((0x${hex:2:2}))
+    local b=$((0x${hex:4:2}))
+    echo $(((r + g + b) / 3))
+}
+
+bg_avg=$(avg_brightness "$BG")
+fg_avg=$(avg_brightness "$FG")
+
+# Use smaller deltas for very dark/light colors to avoid clamping to #000000/#ffffff
+bg_alt_delta=20
+bg_dark_delta=-20
+fg_inactive_delta=-60
+
+if (( bg_avg < 40 )); then
+    bg_alt_delta=12
+    bg_dark_delta=-10
+fi
+if (( fg_avg < 80 )); then
+    fg_inactive_delta=-35
+fi
+
+BG_ALT=$(adjust_color "$BG" $bg_alt_delta)
+BG_DARK=$(adjust_color "$BG" $bg_dark_delta)
+FG_INACTIVE=$(adjust_color "$FG" $fg_inactive_delta)
 
 generate_gtk_css() {
     cat << EOF

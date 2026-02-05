@@ -5,6 +5,78 @@ All notable changes to iNiR will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.0] - 2026-02-04
+
+### Added
+- **Screen cast toggle**: Bar utility button for Niri screen casting with configurable output (PR #29 by @levpr1c)
+- **System sounds volume control**: Configurable volume for timer, pomodoro, and battery notification sounds
+
+### Changed
+- **Video wallpapers**: Replaced mpvpaper with Qt Multimedia for native video wallpaper support
+
+### Fixed
+- **Terminal color theming**: Auto-fix for Alacritty v0.13+ import order requirement - colors now update correctly with wallpaper changes (Issue #30)
+- **Package installation**: Replaced non-existent `matugen-bin` AUR package with `matugen` from official Arch repos (Issue #32)
+- **Waffle background**: Added missing optional chaining in config access to prevent startup errors
+
+## [2.7.0] - 2026-01-21
+
+### Added
+- **Bar module toggles**: Individual enable/disable options for bar modules (resources, media, workspaces, clock, utility buttons, battery, sidebar buttons)
+- **Region search**: Google Lens action via IPC (`region.googleLens`)
+
+### Changed
+- **Media player pipeline**: Centralized filtering/deduping via `MprisController.displayPlayers` for consistent behavior across widgets
+- **Cava visualizer**: Debounced process activation to avoid rapid stop/start loops
+
+### Fixed
+- **Shell performance**: Reduced stutter by rebuilding MPRIS player lists imperatively instead of hot bindings
+- **Bar stability**: Null-safe config access for bar components to prevent startup `ReferenceError`
+- **Darkly theme generation**: Adaptive clamping to prevent icons/colors from collapsing to pure black/white
+
+## [2.6.0] - 2026-01-11
+
+### Added
+- **User modification detection**: Setup now detects user-modified files and preserves them during updates
+- **Themes UI favorites**: Star your favorite color themes for quick access in settings
+- **Quick Access section**: Combined favorites + recently used themes in compact grid
+- **Temperature sensor support**: Extended hwmon detection for older hardware (k10temp, coretemp, etc.)
+- **Control Panel**: New unified control panel with modular sections
+- **Tiling Overlay**: Visual overlay for tiling operations
+- **Tools tab**: New tools section in settings
+- **GIF wallpaper support**: Native animated GIF wallpapers with performance optimizations
+- **Video wallpaper support**: Video files as wallpapers in wallpaper selector
+- **Calculator widget**: Calculator in sidebar left
+- **System monitor widget**: System stats widget in sidebar
+- **Bar media popup**: Quick media controls popup from bar
+- **YouTube Music overhaul**: New player card, track items, account sync, and library import
+- **FontSyncService**: Automatic font synchronization service
+- **CavaProcess widget**: Reusable cavo visualizer component
+- **Terminal config generator**: Auto-generate terminal color schemes from theme
+
+### Changed
+- **Anime API**: Switched from Jikan/MAL to AniList API for better reliability
+- **Themes UI**: Compact 3-column grid layout with scroll, single-select tag filters
+- **Control Panel**: Modularized into separate section components
+- **Audio service**: Simplified architecture with improved sidebar widgets
+- **Cava visualizers**: Improved with config generator script
+- **Aurora dark mode**: Better contrast and color handling
+- **Session screen**: Added blurred wallpaper background like lock screen
+
+### Fixed
+- **Vertical bar hug mode**: Fixed layout issues with hug corner style
+- **Aurora blur corners**: Fixed missing blur in vertical bar Aurora style
+- **Dock recreation**: Dock now properly recreates when bar position changes
+- **Media popup cava**: Removed problematic cava from bar media popup
+- **Hardcoded colors**: Replaced hex colors with ColorUtils for proper theming
+- **Notification widgets**: Improved notification item and action button styling
+- **Lock surfaces**: Improved backdrop and lock surface rendering
+- **YtMusic crashes**: Fixed config race condition and JSON structure issues
+- **YtMusic sync**: Resolved synchronization issues and improved UI/UX
+- **Bar Aurora corners**: Added opaque background to match bar appearance
+- **Bluetooth null guard**: Added safety check for bluetooth service
+- **Various UI fixes**: Misc improvements across bar, overview, and settings
+
 ## [2.5.0] - 2026-01-03
 
 ### Added

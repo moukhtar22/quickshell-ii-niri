@@ -125,13 +125,38 @@ for pkgdir in ./sdata/dist-arch/inir-*/; do
 done
 
 #####################################################################################
-# Install AUR packages
+# Install official repo packages (NO COMPILATION NEEDED)
+#####################################################################################
+echo -e "${STY_CYAN}[$0]: Installing official repo packages...${STY_RST}"
+
+# These packages are now in official Arch repos (extra) - NO AUR, NO COMPILATION!
+OFFICIAL_PACKAGES=(
+  # Quickshell (CRITICAL) - NOW IN EXTRA REPO!
+  quickshell
+  
+  # Already in PKGBUILDs but ensure they're installed
+  niri
+  cliphist
+  gum
+  xwayland-satellite
+  
+  # Theming
+  matugen
+)
+
+installflags="--needed"
+$ask || installflags="$installflags --noconfirm"
+
+echo -e "${STY_GREEN}[$0]: Using precompiled packages from official repos (no compilation!)${STY_RST}"
+v sudo pacman -S $installflags "${OFFICIAL_PACKAGES[@]}"
+
+#####################################################################################
+# Install AUR packages (only those not in official repos)
 #####################################################################################
 echo -e "${STY_CYAN}[$0]: Installing AUR packages...${STY_RST}"
 
 AUR_PACKAGES=(
-  # Quickshell (CRITICAL)
-  quickshell-git
+  # Qt6 extras (not in official repos)
   google-breakpad
   qt6-avif-image-plugin
   
@@ -142,6 +167,7 @@ AUR_PACKAGES=(
 CRITICAL_FONTS=(
   ttf-material-symbols-variable-git
   ttf-jetbrains-mono-nerd
+  ttf-roboto-flex
 )
 
 # Optional fonts (have system fallbacks)
@@ -184,10 +210,9 @@ install_font_fallback() {
 # Add other AUR packages based on flags
 if $INSTALL_FONTS; then
   AUR_PACKAGES+=(
-    matugen-bin
-    adw-gtk-theme-git
+    adw-gtk-theme         # Official repo version if available, else AUR
     capitaine-cursors
-    whitesur-icon-theme-git
+    whitesur-icon-theme   # Try non-git version first
     darkly
   )
 fi
@@ -200,11 +225,21 @@ if $INSTALL_TOOLKIT; then
   AUR_PACKAGES+=(uv)
 fi
 
+# Reset installflags for AUR helper
 installflags="--needed"
 $ask || installflags="$installflags --noconfirm"
 
-# Install main AUR packages
-v $AUR_HELPER -S $installflags "${AUR_PACKAGES[@]}"
+# Install main AUR packages (these are the only ones that need AUR)
+if [[ ${#AUR_PACKAGES[@]} -gt 0 ]]; then
+  echo -e "${STY_BLUE}[$0]: Installing ${#AUR_PACKAGES[@]} AUR packages...${STY_RST}"
+  v $AUR_HELPER -S $installflags "${AUR_PACKAGES[@]}" || {
+    echo -e "${STY_YELLOW}[$0]: Some AUR packages failed. Trying individually...${STY_RST}"
+    for pkg in "${AUR_PACKAGES[@]}"; do
+      $AUR_HELPER -S $installflags "$pkg" 2>/dev/null || \
+        echo -e "${STY_YELLOW}[$0]: Could not install $pkg (non-critical)${STY_RST}"
+    done
+  }
+fi
 
 # Install fonts separately with proper error handling
 if $INSTALL_FONTS; then

@@ -15,7 +15,7 @@ ContentPage {
 
     readonly property var defaultPanels: ({
         "ii": [
-            "iiBar", "iiBackground", "iiBackdrop", "iiCheatsheet", "iiDock", "iiLock", 
+            "iiBar", "iiBackground", "iiBackdrop", "iiCheatsheet", "iiControlPanel", "iiDock", "iiLock", 
             "iiMediaControls", "iiNotificationPopup", "iiOnScreenDisplay", "iiOnScreenKeyboard", 
             "iiOverlay", "iiOverview", "iiPolkit", "iiRegionSelector", "iiScreenCorners", 
             "iiSessionScreen", "iiSidebarLeft", "iiSidebarRight", "iiVerticalBar", 
@@ -23,7 +23,7 @@ ContentPage {
         ],
         "waffle": [
             "wBar", "wBackground", "wStartMenu", "wActionCenter", "wNotificationCenter", "wNotificationPopup", "wOnScreenDisplay", "wWidgets", "wLock", "wPolkit", "wSessionScreen",
-            "iiBackdrop", "iiCheatsheet", "iiLock", "iiOnScreenKeyboard", "iiOverlay", "iiOverview", "iiPolkit", 
+            "iiBackdrop", "iiCheatsheet", "iiControlPanel", "iiLock", "iiOnScreenKeyboard", "iiOverlay", "iiOverview", "iiPolkit", 
             "iiRegionSelector", "iiSessionScreen", "iiWallpaperSelector", "iiAltSwitcher", "iiClipboard"
         ]
     })

@@ -11,7 +11,7 @@ import Quickshell.Services.UPower
 
 Item {
     id: root
-    property bool borderless: Config.options.bar.borderless
+    property bool borderless: Config.options?.bar?.borderless ?? false
     implicitWidth: rowLayout.implicitWidth + rowLayout.spacing * 2
     implicitHeight: rowLayout.implicitHeight
 
@@ -21,6 +21,22 @@ Item {
         const tgt = link?.target?.name ?? "";
         return src === "niri" || tgt === "niri";
     })
+    
+    // Count connected outputs for screen cast feature
+    property int connectedOutputs: 1
+    
+    Process {
+        id: outputCountProcess
+        command: ["niri", "msg", "outputs"]
+        running: CompositorService.isNiri
+        
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const lines = this.text.split('\n');
+                root.connectedOutputs = lines.filter(line => line.trim().startsWith('Output "')).length;
+            }
+        }
+    }
 
     RowLayout {
         id: rowLayout
@@ -29,8 +45,8 @@ Item {
         anchors.centerIn: parent
 
         Loader {
-            active: Config.options.bar.utilButtons.showScreenSnip
-            visible: Config.options.bar.utilButtons.showScreenSnip
+            active: Config.options?.bar?.utilButtons?.showScreenSnip ?? true
+            visible: active
             sourceComponent: CircleUtilButton {
                 Layout.alignment: Qt.AlignVCenter
                 onClicked: Quickshell.execDetached(["/usr/bin/qs", "-c", "ii", "ipc", "call", "region", "screenshot"])
@@ -45,8 +61,8 @@ Item {
         }
 
         Loader {
-            active: Config.options.bar.utilButtons.showScreenRecord
-            visible: Config.options.bar.utilButtons.showScreenRecord
+            active: Config.options?.bar?.utilButtons?.showScreenRecord ?? false
+            visible: active
             sourceComponent: CircleUtilButton {
                 Layout.alignment: Qt.AlignVCenter
                 onClicked: Quickshell.execDetached([Directories.recordScriptPath, "--fullscreen", "--sound"])
@@ -61,8 +77,8 @@ Item {
         }
 
         Loader {
-            active: Config.options.bar.utilButtons.showColorPicker
-            visible: Config.options.bar.utilButtons.showColorPicker
+            active: Config.options?.bar?.utilButtons?.showColorPicker ?? false
+            visible: active
             sourceComponent: CircleUtilButton {
                 Layout.alignment: Qt.AlignVCenter
                 onClicked: Quickshell.execDetached(["/usr/bin/hyprpicker", "-a"])
@@ -77,8 +93,8 @@ Item {
         }
 
         Loader {
-            active: Config.options.bar.utilButtons.showNotepad
-            visible: Config.options.bar.utilButtons.showNotepad
+            active: Config.options?.bar?.utilButtons?.showNotepad ?? true
+            visible: active
             sourceComponent: CircleUtilButton {
                 Layout.alignment: Qt.AlignVCenter
                 onClicked: {
@@ -98,8 +114,8 @@ Item {
         }
 
         Loader {
-            active: Config.options.bar.utilButtons.showKeyboardToggle
-            visible: Config.options.bar.utilButtons.showKeyboardToggle
+            active: Config.options?.bar?.utilButtons?.showKeyboardToggle ?? true
+            visible: active
             sourceComponent: CircleUtilButton {
                 Layout.alignment: Qt.AlignVCenter
                 onClicked: GlobalStates.oskOpen = !GlobalStates.oskOpen
@@ -115,7 +131,7 @@ Item {
 
         Loader {
             readonly property bool micInUse: Privacy.micActive || (Audio?.micBeingAccessed ?? false)
-            active: Config.options.bar.utilButtons.showMicToggle || micInUse
+            active: (Config.options?.bar?.utilButtons?.showMicToggle ?? false) || micInUse
             visible: active
             sourceComponent: CircleUtilButton {
                 id: micButton
@@ -135,9 +151,11 @@ Item {
                         fill: micButton.isInUse ? 1 : 0
                         text: micButton.isMuted ? "mic_off" : "mic"
                         iconSize: Appearance.font.pixelSize.large
-                        color: micButton.isInUse && !micButton.isMuted 
-                            ? Appearance.colors.colError 
-                            : Appearance.colors.colOnLayer2
+                        color: micButton.isInUse && !micButton.isMuted
+                            ? (Appearance.inirEverywhere ? Appearance.inir.colError : Appearance.colors.colError)
+                            : (Appearance.inirEverywhere ? Appearance.inir.colOnLayer2
+                             : Appearance.auroraEverywhere ? Appearance.m3colors.m3onSurface
+                             : Appearance.colors.colOnLayer2)
                     }
                     
                     Rectangle {
@@ -159,25 +177,98 @@ Item {
             }
         }
 
+        // Screen casting control/indicator (PR #29 by levpr1c, enhanced)
+        // With 2+ monitors: Interactive button for dynamic cast (mirroring)
+        // With 1 monitor: Passive indicator showing active screencasts
         Loader {
-            active: root.screenShareActive
+            active: (Config.options?.bar?.utilButtons?.showScreenCast ?? false) 
+                    && CompositorService.isNiri
             visible: active
             sourceComponent: CircleUtilButton {
+                id: screenCastButton
                 Layout.alignment: Qt.AlignVCenter
                 
-                MaterialSymbol {
-                    horizontalAlignment: Qt.AlignHCenter
-                    fill: 1
-                    text: "visibility"
-                    iconSize: Appearance.font.pixelSize.large
-                    color: Appearance.inirEverywhere ? Appearance.inir.colError : Appearance.colors.colError
+                // Behavior depends on monitor count
+                readonly property bool isMultiMonitor: root.connectedOutputs >= 2
+                
+                // Multi-monitor: use persistent state for dynamic cast control
+                // Single monitor: use screenShareActive for passive indication
+                readonly property bool isCasting: isMultiMonitor 
+                    ? Persistent.states.screenCast.active
+                    : root.screenShareActive
+                
+                // Only clickable with multiple monitors
+                enabled: isMultiMonitor
+                opacity: isMultiMonitor ? 1.0 : (isCasting ? 1.0 : 0.6)
+                
+                onClicked: {
+                    if (!isMultiMonitor) return // Safety check
+                    
+                    if (isCasting) {
+                        // Stop casting to the monitor
+                        Quickshell.execDetached(["niri", "msg", "action", "clear-dynamic-cast-target"])
+                        
+                        // Send notification with "video off" icon
+                        Quickshell.execDetached(["notify-send", "-i", "camera-video-off", "Screen Casting", "Casting stopped"])
+                        
+                        Persistent.states.screenCast.active = false
+                    } else {
+                        // Use configured output (default HDMI-A-1)
+                        const output = Config.options?.bar?.utilButtons?.screenCastOutput ?? "HDMI-A-1"
+                        
+                        Quickshell.execDetached(["niri", "msg", "action", "set-dynamic-cast-monitor", output])
+                        
+                        // Send notification with "display" icon
+                        Quickshell.execDetached(["notify-send", "-i", "video-display", "Screen Casting", `Casting started on ${output}`])
+                        
+                        Persistent.states.screenCast.active = true
+                    }
+                }
+                
+                Item {
+                    anchors.fill: parent
+                    
+                    MaterialSymbol {
+                        anchors.centerIn: parent
+                        horizontalAlignment: Qt.AlignHCenter
+                        // Fill the icon when casting is active (matches mic button behavior)
+                        fill: screenCastButton.isCasting ? 1 : 0
+                        text: "visibility"
+                        iconSize: Appearance.font.pixelSize.large
+                        
+                        // Switch to error color when active
+                        color: screenCastButton.isCasting
+                            ? (Appearance.inirEverywhere ? Appearance.inir.colError : Appearance.colors.colError)
+                            : (Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer2)
+                    }
+                    
+                    // Pulsating indicator dot
+                    Rectangle {
+                        visible: screenCastButton.isCasting
+                        width: 6
+                        height: 6
+                        radius: 3
+                        color: Appearance.inirEverywhere ? Appearance.inir.colError : Appearance.colors.colError
+                        anchors {
+                            top: parent.top
+                            right: parent.right
+                        }
+                        
+                        // Infinite blinking animation
+                        SequentialAnimation on opacity {
+                            running: screenCastButton.isCasting
+                            loops: Animation.Infinite
+                            NumberAnimation { to: 0.4; duration: 800 }
+                            NumberAnimation { to: 1.0; duration: 800 }
+                        }
+                    }
                 }
             }
         }
 
         Loader {
-            active: Config.options.bar.utilButtons.showDarkModeToggle
-            visible: Config.options.bar.utilButtons.showDarkModeToggle
+            active: Config.options?.bar?.utilButtons?.showDarkModeToggle ?? true
+            visible: active
             sourceComponent: CircleUtilButton {
                 Layout.alignment: Qt.AlignVCenter
                 onClicked: event => {
@@ -198,8 +289,8 @@ Item {
         }
 
         Loader {
-            active: Config.options.bar.utilButtons.showPerformanceProfileToggle
-            visible: Config.options.bar.utilButtons.showPerformanceProfileToggle
+            active: Config.options?.bar?.utilButtons?.showPerformanceProfileToggle ?? false
+            visible: active
             sourceComponent: CircleUtilButton {
                 Layout.alignment: Qt.AlignVCenter
                 onClicked: event => {

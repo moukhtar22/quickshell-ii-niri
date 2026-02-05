@@ -62,28 +62,31 @@ GroupButton {
     colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover 
         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface : Appearance.colors.colLayer2Hover
     colBackgroundToggled: Appearance.inirEverywhere 
-        ? Appearance.inir.colLayer2
-        : (altAction && expandedSize) ? (Appearance.auroraEverywhere ? "transparent" : Appearance.colors.colLayer2) : Appearance.colors.colPrimary
+        ? Appearance.inir.colPrimaryContainer
+        : Appearance.colors.colPrimary
     colBackgroundToggledHover: Appearance.inirEverywhere 
-        ? Appearance.inir.colLayer2Hover
-        : (altAction && expandedSize) ? (Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface : Appearance.colors.colLayer2Hover) : Appearance.colors.colPrimaryHover
+        ? Appearance.inir.colPrimaryContainerHover
+        : Appearance.colors.colPrimaryHover
     colBackgroundToggledActive: Appearance.inirEverywhere 
-        ? Appearance.inir.colLayer2Active
-        : (altAction && expandedSize) ? (Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceActive : Appearance.colors.colLayer2Active) : Appearance.colors.colPrimaryActive
+        ? Appearance.inir.colPrimaryContainerActive
+        : Appearance.colors.colPrimaryActive
     buttonRadius: Appearance.inirEverywhere 
         ? Appearance.inir.roundingSmall 
         : (toggled ? Appearance.rounding.large : baseHeight / 2)
     buttonRadiusPressed: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.normal
-    property color colText: Appearance.inirEverywhere 
-        ? (toggled ? Appearance.inir.colPrimary : Appearance.inir.colText)
-        : (toggled && !(altAction && expandedSize)) ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer2
-    property color colIcon: Appearance.inirEverywhere 
-        ? (toggled ? Appearance.inir.colPrimary : Appearance.inir.colText)
-        : expandedSize ? (root.toggled ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer3) : colText
+    property color colText: Appearance.inirEverywhere
+        ? (toggled ? Appearance.inir.colOnPrimaryContainer : Appearance.inir.colText)
+        : Appearance.auroraEverywhere
+        ? (toggled ? Appearance.m3colors.m3onPrimary : Appearance.m3colors.m3onSurface)
+        : toggled ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer2
+    property color colIcon: Appearance.inirEverywhere
+        ? (toggled ? Appearance.inir.colOnPrimaryContainer : Appearance.inir.colText)
+        : Appearance.auroraEverywhere
+        ? (toggled ? Appearance.m3colors.m3onPrimary : Appearance.m3colors.m3onSurface)
+        : toggled ? Appearance.colors.colOnPrimary : Appearance.colors.colOnLayer2
 
     onClicked: {
-        if (root.expandedSize && root.altAction) root.altAction();
-        else root.mainAction();
+        root.mainAction();
     }
 
     contentItem: Item {

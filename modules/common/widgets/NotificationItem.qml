@@ -18,7 +18,7 @@ Item { // Notification item area
     property real summaryElideRatio: 0.85
 
     property real dragConfirmThreshold: 70 // Drag to discard notification
-    property real dismissOvershoot: notificationIcon.implicitWidth + 20 // Account for gaps and bouncy animations
+    property real dismissOvershoot: 58 // Account for gaps and bouncy animations (was notificationIcon.implicitWidth + 20)
     property var qmlParent: root?.parent?.parent // There's something between this and the parent ListView
     property var parentDragIndex: qmlParent?.dragIndex ?? -1
     property var parentDragDistance: qmlParent?.dragDistance ?? 0
@@ -64,7 +64,7 @@ Item { // Notification item area
     DragManager { // Drag manager
         id: dragManager
         anchors.fill: root
-        anchors.leftMargin: root.expanded ? -notificationIcon.implicitWidth : 0
+        anchors.leftMargin: root.expanded ? -root.dismissOvershoot : 0
         interactive: expanded
         automaticallyReset: false
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton
@@ -93,26 +93,14 @@ Item { // Notification item area
         }
     }
 
-    NotificationAppIcon { // App icon
-        id: notificationIcon
-        opacity: (!onlyNotification && notificationObject.image != "" && expanded) ? 1 : 0
-        visible: opacity > 0
-
-        Behavior on opacity {
-            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
-        }
-
-        image: notificationObject.image
-        anchors.right: background.left
-        anchors.top: background.top
-        anchors.rightMargin: 10
-    }
+    // Note: App icon for expanded notifications with images is now handled by NotificationAppIcon
+    // within the image itself (small corner icon) - no separate icon needed here to avoid duplication
 
     Rectangle { // Background of notification item
         id: background
         width: parent.width
         anchors.left: parent.left
-        radius: Appearance.rounding.small
+        radius: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.small
         anchors.leftMargin: root.xOffset
 
         Behavior on anchors.leftMargin {
@@ -224,7 +212,7 @@ Item { // Notification item area
                         maskSource: Rectangle {
                             width: actionsFlickable.width
                             height: actionsFlickable.height
-                            radius: Appearance.rounding.small
+                            radius: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.small
                         }
                     }
 

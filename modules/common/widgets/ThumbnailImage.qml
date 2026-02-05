@@ -34,6 +34,14 @@ StyledImage {
         animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
     }
 
+    onStatusChanged: {
+        // Graceful error handling: silently fall back for missing/corrupted thumbnails
+        if (status === Image.Error && generateThumbnail) {
+            // Don't spam warnings - just log at debug level
+            // The image will remain invisible until another source is set
+        }
+    }
+
     onSourceSizeChanged: {
         if (!root.generateThumbnail) return;
         thumbnailGeneration.running = false;

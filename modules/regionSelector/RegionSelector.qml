@@ -83,6 +83,9 @@ Scope {
         function search(): void {
             root.search()
         }
+        function googleLens(): void {
+            root.search()
+        }
         function ocr(): void {
             root.ocr()
         }

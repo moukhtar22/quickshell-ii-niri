@@ -149,12 +149,12 @@ Fonts, theming, and utilities.
 | `glib2` | GLib utilities |
 | `translate-shell` | Translation CLI |
 | `kvantum` | Qt theming |
+| `matugen` | Material You colors | Yes |
 
 ### From AUR
 
 | Package | Purpose | Required |
 |---------|---------|----------|
-| `matugen-bin` | Material You colors | Yes |
 | `ttf-jetbrains-mono-nerd` | JetBrains Mono Nerd | Yes (monospace) |
 | `ttf-material-symbols-variable-git` | Material icons | Yes (UI icons) |
 | `ttf-readex-pro` | Readex Pro font | No (has fallback) |
@@ -183,5 +183,10 @@ Not installed by default, but useful. The shell handles their absence gracefully
 | `mpvpaper` | Video wallpapers | Wallpaper selector |
 | `cava` | Audio visualizer | Bar widget (optional) |
 | `easyeffects` | Audio effects | Quick toggles panel |
+| `yt-dlp` | YouTube video/audio extraction | YTMusic sidebar |
+| `mpv` | Media player | YTMusic sidebar |
+| `deno` / `node` / `bun` | JavaScript runtime for yt-dlp | YTMusic sidebar (YouTube anti-bot) |
 
 > **Note:** `cava` and `easyeffects` are included in `iNiR-audio` but are optional features. The toggles will be hidden if the packages aren't installed.
+
+> **YTMusic Requirements:** The YTMusic sidebar requires `yt-dlp` and `mpv` for playback. Additionally, yt-dlp needs a JavaScript runtime (`deno`, `node` ≥20, or `bun` ≥1.0.31) to solve YouTube's anti-bot challenges. Install at least one: `deno` (recommended), `nodejs`, or `bun`.

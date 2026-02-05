@@ -6,7 +6,7 @@ import qs.services
 import qs
 import qs.modules.common.functions
 import qs.modules.background.widgets
-import qs.modules.mediaControls
+import qs.modules.mediaControls.presets
 
 import QtQuick
 import QtQuick.Layouts
@@ -23,77 +23,67 @@ AbstractBackgroundWidget {
     readonly property real widgetHeight: Appearance.sizes.mediaControlsHeight
     property real popupRounding: Appearance.rounding.screenRounding - Appearance.sizes.hyprlandGapsOut + 1
 
-    readonly property var realPlayers: Mpris.players.values.filter(player => isRealPlayer(player))
-    readonly property var meaningfulPlayers: filterDuplicatePlayers(realPlayers)
+    // Use MprisController.displayPlayers - centralized filtering
+    readonly property var meaningfulPlayers: MprisController.displayPlayers
 
     implicitWidth: widgetWidth
     implicitHeight: playerColumnLayout.implicitHeight
 
-    property bool hasPlasmaIntegration: false
+    readonly property bool visualizerActive: (Config.options?.background?.widgets?.mediaControls?.enable ?? false)
+        && (root.meaningfulPlayers?.length ?? 0) > 0
 
-    Process {
-        id: plasmaIntegrationAvailabilityCheckProc
-        running: true
-        command: ["which", "plasma-browser-integration-host"]
-        onExited: (exitCode, exitStatus) => {
-            root.hasPlasmaIntegration = (exitCode === 0);
-        }
+    CavaProcess {
+        id: cavaProcess
+        active: root.visualizerActive
     }
 
-    function isRealPlayer(player) {
-        if (!(Config.options?.media?.filterDuplicatePlayers ?? true)) {
-            return true;
+    property list<real> visualizerPoints: cavaProcess.points
+
+    readonly property point widgetScreenPos: root.mapToItem(null, 0, 0)
+    
+    // Get selected preset component
+    readonly property string selectedPreset: Config.options?.background?.widgets?.mediaControls?.playerPreset ?? "full"
+    readonly property Component presetComponent: {
+        switch (selectedPreset) {
+            case "compact": return compactPlayerComponent
+            case "minimal": return minimalPlayerComponent
+            case "albumart": return albumArtPlayerComponent
+            case "visualizer": return visualizerPlayerComponent
+            case "classic": return classicPlayerComponent
+            case "full":
+            default: return fullPlayerComponent
         }
-        return (
-            !(hasPlasmaIntegration && player.dbusName.startsWith('org.mpris.MediaPlayer2.firefox')) && !(hasPlasmaIntegration && player.dbusName.startsWith('org.mpris.MediaPlayer2.chromium')) &&
-            !player.dbusName?.startsWith('org.mpris.MediaPlayer2.playerctld') &&
-            !(player.dbusName?.endsWith('.mpd') && !player.dbusName.endsWith('MediaPlayer2.mpd')));
     }
-
-    function filterDuplicatePlayers(players) {
-        let filtered = [];
-        let used = new Set();
-
-        for (let i = 0; i < players.length; ++i) {
-            if (used.has(i))
-                continue;
-            let p1 = players[i];
-            let group = [i];
-
-            for (let j = i + 1; j < players.length; ++j) {
-                let p2 = players[j];
-                if (p1.trackTitle && p2.trackTitle && (p1.trackTitle.includes(p2.trackTitle) || p2.trackTitle.includes(p1.trackTitle)) || (p1.position - p2.position <= 2 && p1.length - p2.length <= 2)) {
-                    group.push(j);
-                }
-            }
-
-            let chosenIdx = group.find(idx => players[idx].trackArtUrl && players[idx].trackArtUrl.length > 0);
-            if (chosenIdx === undefined)
-                chosenIdx = group[0];
-
-            filtered.push(players[chosenIdx]);
-            group.forEach(idx => used.add(idx));
-        }
-        return filtered;
+    
+    // Preset components
+    Component {
+        id: fullPlayerComponent
+        FullPlayer {}
     }
-
-    property list<real> visualizerPoints: []
-
-    Process {
-        id: cavaProc
-        running: Config.options?.background?.widgets?.mediaControls?.enable ?? false
-        onRunningChanged: {
-            if (!cavaProc.running) {
-                root.visualizerPoints = [];
-            }
-        }
-        command: ["cava", "-p", `${FileUtils.trimFileProtocol(Directories.scriptPath)}/cava/raw_output_config.txt`]
-        stdout: SplitParser {
-            onRead: data => {
-                let points = data.split(";").map(p => parseFloat(p.trim())).filter(p => !isNaN(p));
-                root.visualizerPoints = points;
-            }
-        }
+    
+    Component {
+        id: compactPlayerComponent
+        CompactPlayer {}
+    }
+    
+    Component {
+        id: minimalPlayerComponent
+        MinimalPlayer {}
+    }
+    
+    Component {
+        id: albumArtPlayerComponent
+        AlbumArtPlayer {}
+    }
+    
+    Component {
+        id: visualizerPlayerComponent
+        VisualizerPlayer {}
+    }
+    
+    Component {
+        id: classicPlayerComponent
+        ClassicPlayer {}
     }
 
     ColumnLayout {
@@ -105,13 +95,19 @@ AbstractBackgroundWidget {
             model: ScriptModel {
                 values: root.meaningfulPlayers
             }
-            delegate: PlayerControl {
+            delegate: Loader {
                 required property MprisPlayer modelData
-                player: modelData
-                visualizerPoints: root.visualizerPoints
-                implicitWidth: root.widgetWidth
-                implicitHeight: root.widgetHeight
-                radius: root.popupRounding
+                sourceComponent: root.presetComponent
+                Layout.preferredWidth: root.widgetWidth
+                Layout.preferredHeight: root.widgetHeight
+                
+                onLoaded: {
+                    item.player = modelData
+                    item.visualizerPoints = Qt.binding(() => root.visualizerPoints)
+                    item.radius = root.popupRounding
+                    item.screenX = Qt.binding(() => root.widgetScreenPos.x)
+                    item.screenY = Qt.binding(() => root.widgetScreenPos.y)
+                }
             }
         }
 
@@ -123,13 +119,20 @@ AbstractBackgroundWidget {
 
             StyledRectangularShadow {
                 target: placeholderBackground
+                visible: !Appearance.inirEverywhere && !Appearance.auroraEverywhere
             }
 
             Rectangle {
                 id: placeholderBackground
                 anchors.centerIn: parent
-                color: Appearance.colors.colLayer0
-                radius: root.popupRounding
+                color: Appearance.inirEverywhere ? Appearance.inir.colLayer1
+                     : Appearance.auroraEverywhere ? Appearance.aurora.colPopupSurface
+                     : Appearance.colors.colLayer0
+                radius: Appearance.inirEverywhere ? Appearance.inir.roundingNormal : root.popupRounding
+                border.width: Appearance.inirEverywhere || Appearance.auroraEverywhere ? 1 : 0
+                border.color: Appearance.inirEverywhere ? Appearance.inir.colBorder
+                            : Appearance.auroraEverywhere ? Appearance.aurora.colPopupBorder
+                            : "transparent"
                 property real padding: 20
                 implicitWidth: placeholderLayout.implicitWidth + padding * 2
                 implicitHeight: placeholderLayout.implicitHeight + padding * 2
@@ -141,9 +144,14 @@ AbstractBackgroundWidget {
                     StyledText {
                         text: Translation.tr("No active player")
                         font.pixelSize: Appearance.font.pixelSize.large
+                        color: Appearance.inirEverywhere ? Appearance.inir.colText
+                            : Appearance.auroraEverywhere ? Appearance.colors.colOnLayer0
+                            : Appearance.colors.colOnLayer0
                     }
                     StyledText {
-                        color: Appearance.colors.colSubtext
+                        color: Appearance.inirEverywhere ? Appearance.inir.colTextSecondary
+                            : Appearance.auroraEverywhere ? Appearance.aurora.colTextSecondary
+                            : Appearance.colors.colSubtext
                         text: Translation.tr("Make sure your player has MPRIS support\nor try turning off duplicate player filtering")
                         font.pixelSize: Appearance.font.pixelSize.small
                     }

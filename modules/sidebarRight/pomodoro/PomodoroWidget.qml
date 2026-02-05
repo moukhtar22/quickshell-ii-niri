@@ -14,6 +14,14 @@ Item {
         {"name": Translation.tr("Stopwatch"), "icon": "timer"}
     ]
 
+    // Style tokens
+    readonly property color colText: Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer1
+    readonly property color colTextSecondary: Appearance.inirEverywhere ? Appearance.inir.colTextSecondary : Appearance.colors.colSubtext
+    readonly property color colPrimary: Appearance.inirEverywhere ? Appearance.inir.colPrimary : Appearance.colors.colPrimary
+    readonly property color colBorder: Appearance.inirEverywhere ? Appearance.inir.colBorder 
+        : Appearance.auroraEverywhere ? "transparent"
+        : Appearance.colors.colOutlineVariant
+
     Keys.onPressed: (event) => {
         if ((event.key === Qt.Key_PageDown || event.key === Qt.Key_PageUp) && event.modifiers === Qt.NoModifier) {
             if (event.key === Qt.Key_PageDown) {
@@ -139,7 +147,7 @@ Item {
         Rectangle {
             Layout.fillWidth: true
             height: 1
-            color: Appearance.colors.colOutlineVariant
+            color: root.colBorder
         }
 
         SwipeView {

@@ -137,10 +137,10 @@ Singleton {
 
         // Get output for this window's workspace
         const workspaceId = window.workspace_id
-        const workspace = NiriService.allWorkspaces.find(ws => ws.id === workspaceId)
+        const workspace = NiriService.allWorkspaces?.find(ws => ws.id === workspaceId)
         if (!workspace || !workspace.output) return false
 
-        const output = NiriService.outputs[workspace.output]
+        const output = NiriService.outputs?.[workspace.output]
         if (!output) return false
         
         // Try logical first, then mode

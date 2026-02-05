@@ -6,14 +6,13 @@ import qs.modules.waffle.regionSelector as WaffleRegion
 import qs.services
 import QtQuick
 import QtQuick.Controls
-// import Qt.labs.synchronizer // Removed: causes event loop crashes
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 
 PanelWindow {
     id: root
-    visible: false
+    visible: true
     color: "transparent"
     WlrLayershell.namespace: "quickshell:regionSelector"
     WlrLayershell.layer: WlrLayer.Overlay
@@ -26,7 +25,6 @@ PanelWindow {
         bottom: true
     }
 
-    // TODO: Ask: sidebar AI; Ocr: tesseract
     enum SnipAction { Copy, Edit, Search, CharRecognition, Record, RecordWithSound } 
     enum SelectionMode { RectCorners, Circle }
     property var action: RegionSelection.SnipAction.Copy
@@ -71,6 +69,7 @@ PanelWindow {
         ? (NiriService.focusedWorkspaceIndex ?? 0)
         : (hyprlandMonitor && hyprlandMonitor.activeWorkspace ? hyprlandMonitor.activeWorkspace.id : 0)
     property string screenshotPath: `${root.screenshotDir}/image-${screen.name}`
+    property bool screenshotReady: false
     property real dragStartX: 0
     property real dragStartY: 0
     property real draggingX: 0
@@ -232,11 +231,22 @@ PanelWindow {
     property real regionX: Math.min(dragStartX, draggingX)
     property real regionY: Math.min(dragStartY, draggingY)
 
+    Component.onCompleted: {
+        root.screenshotReady = false
+        screenshotProc.running = true
+    }
+
     Process {
         id: screenshotProc
-        running: true
+        running: false
         command: ["/usr/bin/bash", "-c", `/usr/bin/mkdir -p '${StringUtils.shellSingleQuoteEscape(root.screenshotDir)}' && /usr/bin/grim -o '${StringUtils.shellSingleQuoteEscape(root.screen.name)}' '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}'`]
         onExited: (exitCode, exitStatus) => {
+            if (exitCode !== 0) {
+                root.screenshotReady = false
+                Quickshell.execDetached(["/usr/bin/notify-send", "Region search failed", "grim failed to capture the screen" , "-a", "Region Selector", "-t", "4000"])
+            } else {
+                root.screenshotReady = true
+            }
             if (root.enableContentRegions) imageDetectionProcess.running = true;
             root.preparationDone = !checkRecordingProc.running;
         }
@@ -260,7 +270,6 @@ PanelWindow {
             root.dismiss();
             return;
         }
-        // Small delay to ensure screenshot is written to disk
         Qt.callLater(() => { root.visible = true; });
     }
 
@@ -282,7 +291,6 @@ PanelWindow {
                         );
                     }
                 } catch (e) {
-                    console.warn("[RegionSelection] Failed to parse image dimensions:", e)
                     imageRegions = []
                 }
             }
@@ -290,25 +298,20 @@ PanelWindow {
     }
 
     function snip() {
-        // Validity check
         if (root.regionWidth <= 0 || root.regionHeight <= 0) {
-            console.warn("[Region Selector] Invalid region size, skipping snip.");
             root.dismiss();
             return;
         }
 
-        // Clamp region to screen bounds
         root.regionX = Math.max(0, Math.min(root.regionX, root.screen.width - root.regionWidth));
         root.regionY = Math.max(0, Math.min(root.regionY, root.screen.height - root.regionHeight));
         root.regionWidth = Math.max(0, Math.min(root.regionWidth, root.screen.width - root.regionX));
         root.regionHeight = Math.max(0, Math.min(root.regionHeight, root.screen.height - root.regionY));
 
-        // Adjust action
         if (root.action === RegionSelection.SnipAction.Copy || root.action === RegionSelection.SnipAction.Edit) {
             root.action = root.mouseButton === Qt.RightButton ? RegionSelection.SnipAction.Edit : RegionSelection.SnipAction.Copy;
         }
 
-        // Set command for action
         const rx = Math.round(root.regionX * root.monitorScale);
         const ry = Math.round(root.regionY * root.monitorScale);
         const rw = Math.round(root.regionWidth * root.monitorScale);
@@ -320,7 +323,6 @@ PanelWindow {
         const cleanup = `/usr/bin/rm '${StringUtils.shellSingleQuoteEscape(root.screenshotPath)}'`
         const slurpRegion = `${rx},${ry} ${rw}x${rh}`
         const uploadAndGetUrl = (filePath) => {
-            // 0x0.st returns the URL directly, no JSON parsing needed
             return `/usr/bin/curl -sF file=@'${StringUtils.shellSingleQuoteEscape(filePath)}' ${root.fileUploadApiEndpoint}`
         }
         const annotationCommand = `${(Config.options?.regionSelector?.annotation?.useSatty ?? false) ? "satty" : "swappy"} -f -`;
@@ -344,7 +346,6 @@ PanelWindow {
                 snipProc.command = ["/usr/bin/bash", "-c", `${Directories.recordScriptPath} --region '${slurpRegion}' --sound`]
                 break;
             default:
-                console.warn("[Region Selector] Unknown snip action, skipping snip.");
                 root.dismiss();
                 return;
         }
@@ -364,7 +365,7 @@ PanelWindow {
 
         Image {
             anchors.fill: parent
-            source: root.visible ? `file://${root.screenshotPath}` : ""
+            source: root.visible && root.screenshotReady ? `file://${root.screenshotPath}` : ""
             fillMode: Image.PreserveAspectFit
             cache: false
         }

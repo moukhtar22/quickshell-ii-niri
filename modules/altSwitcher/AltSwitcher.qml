@@ -19,6 +19,7 @@ Scope {
     // Animation and visibility control
     readonly property var altSwitcherOptions: Config.options?.altSwitcher ?? {}
     readonly property string altPreset: altSwitcherOptions.preset ?? "default"
+    readonly property bool altNoVisualUi: altSwitcherOptions.noVisualUi ?? false
     readonly property bool altMonochromeIcons: altSwitcherOptions.monochromeIcons ?? false
     readonly property bool altEnableAnimation: altSwitcherOptions.enableAnimation ?? true
     readonly property int altAnimationDurationMs: altSwitcherOptions.animationDurationMs ?? 200
@@ -33,13 +34,15 @@ Scope {
     readonly property bool altShowOverviewWhileSwitching: altSwitcherOptions.showOverviewWhileSwitching ?? false
     readonly property int altAutoHideDelayMs: altSwitcherOptions.autoHideDelayMs ?? 500
 
-    property bool animationsEnabled: root.altEnableAnimation
+    property bool animationsEnabled: root.effectiveEnableAnimation
     property bool panelVisible: false
     property real panelRightMargin: -panelWidth
     // Snapshot actual de ventanas ordenadas que se usa mientras el panel está abierto
     property var itemSnapshot: []
     // Cache de iconos resueltos para evitar lookups repetidos
     property var iconCache: ({})
+    property var iconCacheKeys: []
+    readonly property int maxIconCacheSize: 100
     property bool useM3Layout: root.altUseM3Layout
     property bool centerPanel: root.altPanelAlignment === "center"
     property bool compactStyle: root.altCompactStyle
@@ -48,6 +51,41 @@ Scope {
     property bool overviewOpenedByAltSwitcher: false
     // Pre-warm flag para evitar lag en primera apertura
     property bool _warmedUp: false
+    
+    readonly property int windowCount: itemSnapshot ? itemSnapshot.length : 0
+    readonly property bool isHighLoad: windowCount > 15
+    readonly property bool effectiveEnableBlurGlass: root.altEnableBlurGlass && !isHighLoad
+    readonly property bool effectiveEnableAnimation: root.altEnableAnimation && !isHighLoad
+
+    property bool quickSwitchDone: false
+    property var noUiSnapshot: []
+    property int noUiIndex: 0
+
+    property var _pendingWindowsUpdate: null
+    Timer {
+        id: windowsUpdateDebounce
+        interval: 50
+        repeat: false
+        onTriggered: {
+            if (root._pendingWindowsUpdate) {
+                root._pendingWindowsUpdate()
+                root._pendingWindowsUpdate = null
+            }
+        }
+    }
+
+    Timer {
+        id: quickSwitchResetTimer
+        interval: 800
+        repeat: false
+        onTriggered: {
+            if (!GlobalStates.altSwitcherOpen) {
+                root.quickSwitchDone = false
+                root.noUiSnapshot = []
+                root.noUiIndex = 0
+            }
+        }
+    }
 
 
 
@@ -75,13 +113,25 @@ Scope {
         return parts.join(" ")
     }
 
-    // Resuelve y cachea el icono para un appId
     function getCachedIcon(appId, appName, title) {
         const key = appId || appName || title || ""
-        if (iconCache[key] !== undefined)
+        if (iconCache[key] !== undefined) {
+            const idx = iconCacheKeys.indexOf(key)
+            if (idx >= 0) {
+                iconCacheKeys.splice(idx, 1)
+                iconCacheKeys.push(key)
+            }
             return iconCache[key]
+        }
+        
+        if (iconCacheKeys.length >= maxIconCacheSize) {
+            const oldestKey = iconCacheKeys.shift()
+            delete iconCache[oldestKey]
+        }
+        
         const icon = AppSearch.getIconSource(key)
         iconCache[key] = icon
+        iconCacheKeys.push(key)
         return icon
     }
 
@@ -165,11 +215,45 @@ Scope {
         return items
     }
 
+    property bool _rebuildPending: false
+    
     function rebuildSnapshot() {
-        const windows = NiriService.windows || []
-        const workspaces = NiriService.workspaces || {}
-        const mruIds = NiriService.mruWindowIds || []
-        itemSnapshot = buildItemsFrom(windows, workspaces, mruIds)
+        if (_rebuildPending) return
+        _rebuildPending = true
+        
+        Qt.callLater(function() {
+            _rebuildPending = false
+            const windows = NiriService.windows || []
+            const workspaces = NiriService.workspaces || {}
+            const mruIds = NiriService.mruWindowIds || []
+            itemSnapshot = buildItemsFrom(windows, workspaces, mruIds)
+        })
+    }
+
+    property bool _noUiRebuildPending: false
+    
+    function rebuildNoUiSnapshot() {
+        if (_noUiRebuildPending) return
+        _noUiRebuildPending = true
+        
+        Qt.callLater(function() {
+            _noUiRebuildPending = false
+            const windows = NiriService.windows || []
+            const workspaces = NiriService.workspaces || {}
+            const mruIds = NiriService.mruWindowIds || []
+            root.noUiSnapshot = buildItemsFrom(windows, workspaces, mruIds)
+            root.noUiIndex = 0
+        })
+    }
+
+    function focusNoUiIndex() {
+        const len = root.noUiSnapshot?.length ?? 0
+        if (len <= 0)
+            return
+        const idx = Math.max(0, Math.min(len - 1, root.noUiIndex))
+        const id = root.noUiSnapshot[idx]?.id
+        if (id !== undefined)
+            NiriService.focusWindow(id)
     }
 
     function ensureSnapshot() {
@@ -382,7 +466,7 @@ Scope {
                 z: 0.5
                 anchors.fill: panelBackground
                 source: panelBackground
-                visible: !root.compactStyle && !root.altUseM3Layout && Appearance.effectsEnabled && root.altEnableBlurGlass && root.altBlurAmount > 0
+                visible: !root.compactStyle && !root.altUseM3Layout && Appearance.effectsEnabled && root.effectiveEnableBlurGlass && root.altBlurAmount > 0 && !root.isHighLoad
                 blurEnabled: true
                 blur: root.altBlurAmount
                 blurMax: 64
@@ -420,15 +504,17 @@ Scope {
                                    : (Appearance.inirEverywhere ? Appearance.inir.colLayer3 
                                        : Appearance.auroraEverywhere ? Appearance.colors.colLayer2Base 
                                        : Appearance.m3colors.m3surfaceContainerHighest)
-                            scale: compactMouseArea.pressed ? 0.92 : (compactMouseArea.containsMouse ? 1.05 : 1.0)
+                            scale: compactMouseArea.pressed ? 0.92 : (compactMouseArea.containsMouse && !root.isHighLoad ? 1.05 : 1.0)
                             
                             Behavior on color { 
+                                enabled: !root.isHighLoad
                                 ColorAnimation { 
                                     duration: 200
                                     easing.type: Easing.OutCubic
                                 } 
                             }
                             Behavior on scale { 
+                                enabled: !root.isHighLoad
                                 NumberAnimation { 
                                     duration: 200
                                     easing.type: Easing.OutCubic
@@ -444,7 +530,7 @@ Scope {
                             }
                             
                             Loader {
-                                active: root.altMonochromeIcons
+                                active: root.altMonochromeIcons && !root.isHighLoad
                                 anchors.fill: compactIcon
                                 sourceComponent: Item {
                                     Desaturate {
@@ -912,39 +998,48 @@ Scope {
         Connections {
             target: NiriService
             function onWindowsChanged() {
+                if (GameMode.active) {
+                    return
+                }
+                
                 if (!GlobalStates.altSwitcherOpen || !root.itemSnapshot || root.itemSnapshot.length === 0)
                     return
 
-                const wins = NiriService.windows || []
-                if (!wins.length) {
-                    root.itemSnapshot = []
-                    listView.currentIndex = -1
-                    GlobalStates.altSwitcherOpen = false
-                    return
-                }
+                root._pendingWindowsUpdate = function() {
+                    const wins = NiriService.windows || []
+                    if (!wins.length) {
+                        root.itemSnapshot = []
+                        listView.currentIndex = -1
+                        GlobalStates.altSwitcherOpen = false
+                        return
+                    }
 
-                const alive = {}
-                for (let i = 0; i < wins.length; i++) {
-                    alive[wins[i].id] = true
-                }
+                    const alive = {}
+                    for (let i = 0; i < wins.length; i++) {
+                        alive[wins[i].id] = true
+                    }
 
-                const filtered = []
-                for (let i = 0; i < root.itemSnapshot.length; i++) {
-                    const it = root.itemSnapshot[i]
-                    if (alive[it.id])
-                        filtered.push(it)
-                }
+                    const filtered = []
+                    for (let i = 0; i < root.itemSnapshot.length; i++) {
+                        const it = root.itemSnapshot[i]
+                        if (alive[it.id])
+                            filtered.push(it)
+                    }
 
-                if (filtered.length === 0) {
-                    GlobalStates.altSwitcherOpen = false
-                    return
-                }
+                    if (filtered.length === 0) {
+                        GlobalStates.altSwitcherOpen = false
+                        return
+                    }
 
-                root.itemSnapshot = filtered
+                    if (filtered.length !== root.itemSnapshot.length) {
+                        root.itemSnapshot = filtered
+                    }
 
-                if (listView.currentIndex >= filtered.length) {
-                    listView.currentIndex = filtered.length - 1
+                    if (listView.currentIndex >= filtered.length) {
+                        listView.currentIndex = filtered.length - 1
+                    }
                 }
+                windowsUpdateDebounce.restart()
             }
         }
 
@@ -1050,7 +1145,7 @@ Scope {
     Timer {
         id: warmUpTimer
         interval: 2000  // 2 segundos después del inicio
-        running: !root._warmedUp && NiriService.windows.length > 0
+        running: !root._warmedUp && (NiriService.windows?.length ?? 0) > 0
         onTriggered: {
             root.rebuildSnapshot()
             root._warmedUp = true
@@ -1067,7 +1162,8 @@ Scope {
         target: NiriService
         enabled: root._warmedUp && !GlobalStates.altSwitcherOpen
         function onWindowsChanged() {
-            // Invalidar cache de iconos para nuevas apps
+            if (GameMode.active) return
+            
             const wins = NiriService.windows || []
             for (let i = 0; i < wins.length; i++) {
                 const w = wins[i]
@@ -1075,6 +1171,25 @@ Scope {
                 if (key && root.iconCache[key] === undefined) {
                     root.getCachedIcon(w.app_id, "", w.title)
                 }
+            }
+        }
+    }
+    
+    Timer {
+        id: noUiSnapshotUpdateTimer
+        interval: GameMode.active ? 10000 : 3000
+        repeat: true
+        running: root.altNoVisualUi && !GlobalStates.altSwitcherOpen
+        onTriggered: {
+            if (GameMode.active) return
+            
+            if (NiriService.windows?.length > 0) {
+                Qt.callLater(function() {
+                    const windows = NiriService.windows || []
+                    const workspaces = NiriService.workspaces || {}
+                    const mruIds = NiriService.mruWindowIds || []
+                    root.noUiSnapshot = buildItemsFrom(windows, workspaces, mruIds)
+                })
             }
         }
     }
@@ -1102,6 +1217,31 @@ Scope {
         }
 
         function next(): void {
+            if (root.altNoVisualUi) {
+                autoHideTimer.stop()
+                GlobalStates.altSwitcherOpen = false
+
+                const len = root.noUiSnapshot?.length ?? 0
+                if (!root.quickSwitchDone || len === 0) {
+                    root.rebuildNoUiSnapshot()
+                }
+
+                const newLen = root.noUiSnapshot?.length ?? 0
+                if (newLen === 0)
+                    return
+
+                if (!root.quickSwitchDone) {
+                    root.quickSwitchDone = true
+                    root.noUiIndex = newLen > 1 ? 1 : 0
+                } else {
+                    root.noUiIndex = (root.noUiIndex + 1) % newLen
+                }
+
+                root.focusNoUiIndex()
+                quickSwitchResetTimer.restart()
+                return
+            }
+
             ensureOpen()
             nextItem()
             activateCurrent()
@@ -1109,6 +1249,31 @@ Scope {
         }
 
         function previous(): void {
+            if (root.altNoVisualUi) {
+                autoHideTimer.stop()
+                GlobalStates.altSwitcherOpen = false
+
+                const len = root.noUiSnapshot?.length ?? 0
+                if (!root.quickSwitchDone || len === 0) {
+                    root.rebuildNoUiSnapshot()
+                }
+
+                const newLen = root.noUiSnapshot?.length ?? 0
+                if (newLen === 0)
+                    return
+
+                if (!root.quickSwitchDone) {
+                    root.quickSwitchDone = true
+                    root.noUiIndex = newLen > 1 ? (newLen - 1) : 0
+                } else {
+                    root.noUiIndex = (root.noUiIndex - 1 + newLen) % newLen
+                }
+
+                root.focusNoUiIndex()
+                quickSwitchResetTimer.restart()
+                return
+            }
+
             ensureOpen()
             previousItem()
             activateCurrent()

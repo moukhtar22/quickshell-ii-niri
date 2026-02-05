@@ -28,19 +28,13 @@ Item {
         return "none"
     }
 
-    StyledRectangularShadow { target: card; visible: !Appearance.auroraEverywhere }
-
     Rectangle {
         id: card
         anchors.centerIn: parent
         width: parent.width
         implicitHeight: stack.implicitHeight + 16
         radius: Appearance.inirEverywhere ? Appearance.inir.roundingNormal : Appearance.rounding.normal
-        color: Appearance.inirEverywhere ? Appearance.inir.colLayer1
-             : Appearance.auroraEverywhere ? "transparent" 
-             : Appearance.colors.colLayer1
-        border.width: Appearance.auroraEverywhere ? 0 : 1
-        border.color: Appearance.inirEverywhere ? Appearance.inir.colBorder : Appearance.colors.colLayer0Border
+        color: "transparent"
 
         StackLayout {
             id: stack

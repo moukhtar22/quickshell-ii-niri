@@ -5,6 +5,7 @@ check_conflicts() {
     echo -e "${STY_CYAN}Checking for conflicting packages...${STY_RST}"
     
     local conflicts=()
+    local conflict_services=()
     local package_manager=""
     
     if command -v pacman &>/dev/null; then
@@ -56,6 +57,10 @@ check_conflicts() {
         
         if $installed; then
             conflicts+=("$pkg (${conflict_map[$pkg]})")
+            # Check if it's a systemd service
+            if systemctl --user list-unit-files "${pkg}.service" &>/dev/null 2>&1; then
+                conflict_services+=("${pkg}.service")
+            fi
         fi
     done
     
@@ -67,11 +72,48 @@ check_conflicts() {
         echo ""
         echo -e "${STY_BOLD}Quickshell provides these functionalities natively.${STY_RST}"
         echo -e "Running them simultaneously might cause visual glitches or double notifications."
-        echo -e "It is recommended to uninstall or disable them."
         echo ""
         
+        # Offer to disable conflicting services
+        if [ ${#conflict_services[@]} -gt 0 ]; then
+            echo -e "${STY_CYAN}Detected running services:${STY_RST}"
+            for svc in "${conflict_services[@]}"; do
+                if systemctl --user is-active "$svc" &>/dev/null; then
+                    echo -e "  ${STY_YELLOW}●${STY_RST} $svc (active)"
+                elif systemctl --user is-enabled "$svc" &>/dev/null; then
+                    echo -e "  ${STY_FAINT}○${STY_RST} $svc (enabled)"
+                fi
+            done
+            echo ""
+            
+            if [[ "$ask" == "true" ]]; then
+                if tui_confirm "Disable conflicting services automatically?"; then
+                    echo ""
+                    for svc in "${conflict_services[@]}"; do
+                        if systemctl --user is-enabled "$svc" &>/dev/null 2>&1 || systemctl --user is-active "$svc" &>/dev/null 2>&1; then
+                            echo -e "${STY_CYAN}Disabling $svc...${STY_RST}"
+                            systemctl --user disable --now "$svc" 2>/dev/null && \
+                                log_success "Disabled $svc" || \
+                                log_warning "Could not disable $svc (may need manual intervention)"
+                        fi
+                    done
+                    echo ""
+                    log_success "Conflicting services disabled"
+                else
+                    echo -e "${STY_YELLOW}You can disable them later with:${STY_RST}"
+                    echo -e "  ${STY_FAINT}systemctl --user disable --now <service>${STY_RST}"
+                fi
+            else
+                echo -e "${STY_YELLOW}Non-interactive mode: Skipping service disable${STY_RST}"
+                echo -e "${STY_YELLOW}Disable manually with: systemctl --user disable --now <service>${STY_RST}"
+            fi
+        else
+            echo -e "${STY_YELLOW}Recommendation: Uninstall or disable them manually.${STY_RST}"
+        fi
+        
+        echo ""
         if [[ "$ask" == "true" ]]; then
-            read -p "Press Enter to continue installation (or Ctrl+C to abort and remove them manually)..."
+            read -p "Press Enter to continue installation (or Ctrl+C to abort)..."
         else
             echo "Continuing in non-interactive mode..."
         fi

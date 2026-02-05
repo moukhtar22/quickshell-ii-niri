@@ -19,7 +19,7 @@ Singleton {
     onSuspendTimeoutChanged: _restartSwayidle()
     onInhibitChanged: _restartSwayidle()
 
-    function toggleInhibit(active = null) {
+    function toggleInhibit(active = null): void {
         if (active !== null) {
             inhibit = active;
         } else {

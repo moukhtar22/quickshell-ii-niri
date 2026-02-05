@@ -28,6 +28,7 @@ ShellRoot {
     property var _weatherService: Weather
     property var _powerProfilePersistence: PowerProfilePersistence
     property var _voiceSearchService: VoiceSearch
+    property var _fontSyncService: FontSyncService
 
     Component.onCompleted: {
         root._log("[Shell] Initializing singletons");
@@ -63,7 +64,18 @@ ShellRoot {
         _migrationDone = true;
         
         const family = Config.options?.panelFamily ?? "ii";
-        const panels = Config.options?.enabledPanels ?? [];
+        let panels = [...(Config.options?.enabledPanels ?? [])];
+        let changed = false;
+        
+        // Ensure all base panels for current family are present (adds new panels from updates)
+        const basePanels = root.panelFamilies[family] ?? [];
+        for (const panel of basePanels) {
+            if (!panels.includes(panel)) {
+                root._log("[Shell] Adding new panel to enabledPanels: " + panel);
+                panels.push(panel);
+                changed = true;
+            }
+        }
         
         if (family === "waffle") {
             // If waffle family has iiBackdrop but not wBackdrop, migrate
@@ -72,10 +84,14 @@ ShellRoot {
             
             if (hasIiBackdrop && !hasWBackdrop) {
                 root._log("[Shell] Migrating enabledPanels: replacing iiBackdrop with wBackdrop for waffle family");
-                const newPanels = panels.filter(p => p !== "iiBackdrop");
-                newPanels.push("wBackdrop");
-                Config.options.enabledPanels = newPanels;
+                panels = panels.filter(p => p !== "iiBackdrop");
+                panels.push("wBackdrop");
+                changed = true;
             }
+        }
+        
+        if (changed) {
+            Config.options.enabledPanels = panels;
         }
     }
 
@@ -119,10 +135,10 @@ ShellRoot {
     property list<string> families: ["ii", "waffle"]
     property var panelFamilies: ({
         "ii": [
-            "iiBar", "iiBackground", "iiBackdrop", "iiCheatsheet", "iiDock", "iiLock", 
+            "iiBar", "iiBackground", "iiBackdrop", "iiCheatsheet", "iiControlPanel", "iiDock", "iiLock", 
             "iiMediaControls", "iiNotificationPopup", "iiOnScreenDisplay", "iiOnScreenKeyboard", 
             "iiOverlay", "iiOverview", "iiPolkit", "iiRegionSelector", "iiScreenCorners", 
-            "iiSessionScreen", "iiSidebarLeft", "iiSidebarRight", "iiVerticalBar", 
+            "iiSessionScreen", "iiSidebarLeft", "iiSidebarRight", "iiTilingOverlay", "iiVerticalBar", 
             "iiWallpaperSelector", "iiClipboard"
         ],
         "waffle": [
@@ -130,8 +146,8 @@ ShellRoot {
             // Shared modules that work with waffle
             // Note: wTaskView is experimental and NOT included by default
             // Note: wAltSwitcher is always loaded when waffle is active (not in this list)
-            "iiCheatsheet", "iiLock", "iiOnScreenKeyboard", "iiOverlay", "iiOverview", "iiPolkit", 
-            "iiRegionSelector", "iiScreenCorners", "iiSessionScreen", "iiWallpaperSelector", "iiClipboard"
+            "iiCheatsheet", "iiControlPanel", "iiLock", "iiOnScreenKeyboard", "iiOverlay", "iiOverview", "iiPolkit", 
+            "iiRegionSelector", "iiScreenCorners", "iiSessionScreen", "iiTilingOverlay", "iiWallpaperSelector", "iiClipboard"
         ]
     })
 

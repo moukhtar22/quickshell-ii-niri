@@ -523,6 +523,8 @@ Item {
                 function onOverviewOpenChanged() {
                     if (GlobalStates.overviewOpen) {
                         windowSpace.rebuildWindowItems()
+                        // Capture window previews
+                        WindowPreviewService.captureForTaskView()
                     }
                 }
             }
@@ -629,12 +631,55 @@ Item {
                             border.width: windowItem.hovered || windowItem.pressed ? 1 : 0
                         }
 
-                        // Icono de la app centrado en el tile
+                        // Window preview image
+                        readonly property bool showPreviews: Config.options?.overview?.showPreviews !== false
+                        Image {
+                            id: windowPreview
+                            anchors.fill: parent
+                            anchors.margins: 2
+                            property string previewUrl: ""
+                            source: parent.showPreviews ? previewUrl : ""
+                            asynchronous: true
+                            fillMode: Image.PreserveAspectCrop
+                            smooth: true
+                            mipmap: true
+                            visible: parent.showPreviews && status === Image.Ready
+                            opacity: status === Image.Ready ? 1 : 0
+
+                            Behavior on opacity {
+                                NumberAnimation { duration: 150; easing.type: Easing.OutQuad }
+                            }
+
+                            // Listen for preview updates
+                            Connections {
+                                target: WindowPreviewService
+                                function onPreviewUpdated(updatedId: int): void {
+                                    if (updatedId === windowData.id) {
+                                        windowPreview.previewUrl = WindowPreviewService.getPreviewUrl(updatedId)
+                                    }
+                                }
+                                function onCaptureComplete(): void {
+                                    const url = WindowPreviewService.getPreviewUrl(windowData.id)
+                                    if (url) windowPreview.previewUrl = url
+                                }
+                            }
+                            
+                            Component.onCompleted: {
+                                Qt.callLater(() => {
+                                    if (windowData && windowData.id) {
+                                        const url = WindowPreviewService.getPreviewUrl(windowData.id)
+                                        if (url) previewUrl = url
+                                    }
+                                })
+                            }
+                        }
+
+                        // Icono de la app (fallback cuando no hay preview)
                         Image {
                             id: windowIcon
                             anchors.centerIn: parent
                             width: {
-                                var size = Math.min(parent.width, parent.height) * 0.35;
+                                var size = Math.min(parent.width, parent.height) * (windowPreview.visible ? 0.25 : 0.35);
                                 const min = root.overviewOptions.iconMinSize ?? 0;
                                 const max = root.overviewOptions.iconMaxSize ?? 0;
                                 if (min > 0) size = Math.max(size, min);
@@ -645,6 +690,7 @@ Item {
                             source: AppSearch.getIconSource(windowData.app_id || windowData.appId || "")
                             asynchronous: true
                             fillMode: Image.PreserveAspectFit
+                            visible: !windowPreview.visible
                             scale: windowItem.hovered ? 1.08 : 1.0
                             Behavior on scale {
                                 NumberAnimation {

@@ -21,9 +21,11 @@ Scope {
     readonly property bool isVertical: root.position === "left" || root.position === "right"
     readonly property bool isTop: root.position === "top"
     readonly property bool isLeft: root.position === "left"
-    
-    // Key para forzar recreación del panel cuando cambia posición
-    property string _positionKey: root.position
+
+    // Track bar position to force dock recreation when bar changes
+    readonly property bool barIsVertical: Config.options?.bar?.bottom !== undefined
+    // Key to force panel recreation when dock OR bar position changes
+    property string _positionKey: `${root.position}_${barIsVertical}`
 
     Variants {
         model: Quickshell.screens
@@ -32,20 +34,20 @@ Scope {
             id: panelLoader
             required property var modelData
             active: true
-            
-            // Recrear cuando cambie la posición
+
+            // Recrear cuando cambie la posición del dock o de la barra
             property string posKey: root._positionKey
             onPosKeyChanged: {
                 active = false
                 reloadTimer.start()
             }
-            
+
             Timer {
                 id: reloadTimer
                 interval: 50
                 onTriggered: panelLoader.active = true
             }
-            
+
             sourceComponent: PanelWindow {
                 id: dockRoot
                 screen: panelLoader.modelData
@@ -221,6 +223,7 @@ Scope {
                                     buttonPadding: dockRow.padding
                                     vertical: false
                                     dockPosition: root.position
+                                    parentWindow: dockRoot
                                 }
                                 DockButton {
                                     vertical: false
@@ -247,6 +250,7 @@ Scope {
                                     buttonPadding: dockColumn.padding
                                     vertical: true
                                     dockPosition: root.position
+                                    parentWindow: dockRoot
                                 }
                                 DockButton {
                                     vertical: true

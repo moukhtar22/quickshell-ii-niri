@@ -48,7 +48,7 @@ Singleton {
         // Get window info
         let targetWindow;
         if (windowId) {
-            targetWindow = NiriService.windows.find(w => w.id === windowId);
+            targetWindow = NiriService.windows?.find(w => w.id === windowId);
         } else {
             targetWindow = NiriService.activeWindow;
             windowId = targetWindow?.id;
@@ -73,7 +73,10 @@ Singleton {
         minimizedIds = [...minimizedIds, windowId];
         
         // Move to a workspace far to the right (Niri will create it)
-        const maxWsIndex = Math.max(...NiriService.allWorkspaces.map(ws => ws.idx), 1);
+        const allWorkspaces = NiriService.allWorkspaces ?? [];
+        const maxWsIndex = allWorkspaces.length > 0 
+            ? Math.max(...allWorkspaces.map(ws => ws.idx), 1) 
+            : 1;
         const targetWs = maxWsIndex + 10;
         
         moveToWorkspaceProc.command = [

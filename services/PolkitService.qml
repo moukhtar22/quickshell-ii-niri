@@ -45,8 +45,8 @@ Singleton {
                 root.impl = component.createObject(root)
                 console.log("[PolkitService] Polkit module loaded successfully")
             } else if (component.status === Component.Error) {
-                console.warn("[PolkitService] Polkit module not available - polkit agent disabled")
-                console.warn("[PolkitService] To enable, rebuild quickshell with -DSERVICE_POLKIT=ON")
+                console.debug("[PolkitService] Polkit module not available - polkit agent disabled")
+                console.debug("[PolkitService] To enable, rebuild quickshell with -DSERVICE_POLKIT=ON")
             }
         }
 

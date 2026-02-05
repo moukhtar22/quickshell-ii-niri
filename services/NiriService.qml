@@ -1233,4 +1233,121 @@ Singleton {
         return result
     }
 
+    // ========== TILING LAYOUTS ==========
+
+    property string currentLayout: "off"
+    readonly property var layouts: ["off", "master-left", "master-right", "columns", "monocle"]
+    readonly property int tilingWindowCount: _currentWorkspaceWindows.length
+    readonly property var _currentWorkspaceWindows: {
+        const focusedWs = allWorkspaces.find(ws => ws.is_focused)
+        if (!focusedWs) return []
+        return windows.filter(w => w.workspace_id === focusedWs.id && !w.is_floating)
+    }
+
+    signal layoutChanged(string layout)
+    signal layoutApplied(string layout, int windowCount)
+
+    function cycleLayout(): void {
+        const idx = layouts.indexOf(currentLayout)
+        const nextIdx = (idx + 1) % layouts.length
+        applyLayout(layouts[nextIdx])
+    }
+
+    function applyLayout(layoutName): void {
+        if (!CompositorService.isNiri) return
+        const wins = _currentWorkspaceWindows
+        if (wins.length === 0) {
+            currentLayout = layoutName
+            layoutChanged(layoutName)
+            return
+        }
+
+        // Reset: expel all windows to separate columns
+        _resetLayout(wins.length)
+
+        // Apply layout after reset
+        _layoutTimer.layoutName = layoutName
+        _layoutTimer.windowCount = wins.length
+        _layoutTimer.start()
+    }
+
+    function _resetLayout(count): void {
+        focusColumnFirst()
+        for (let i = 0; i < count + 2; i++) {
+            expelWindowFromColumn()
+        }
+    }
+
+    Timer {
+        id: _layoutTimer
+        interval: 100
+        property string layoutName: "off"
+        property int windowCount: 0
+        onTriggered: {
+            switch (layoutName) {
+                case "master-left": root._applyMasterLeft(windowCount); break
+                case "master-right": root._applyMasterRight(windowCount); break
+                case "columns": root._applyColumns(windowCount); break
+                case "monocle": root._applyMonocle(windowCount); break
+                default: break // "off" - already reset
+            }
+            root.currentLayout = layoutName
+            root.layoutChanged(layoutName)
+            root.layoutApplied(layoutName, windowCount)
+        }
+    }
+
+    function _applyMasterLeft(count): void {
+        if (count < 2) return
+        // Master en col 0 (50%), stack en col 1
+        focusColumnFirst()
+        setColumnWidth("50%")
+        focusColumnRight()
+        // Consume todas las ventanas restantes hacia col 1
+        for (let i = 0; i < count - 2; i++) {
+            consumeWindowIntoColumn()
+        }
+    }
+
+    function _applyMasterRight(count): void {
+        if (count < 2) return
+        // Stack en col 0, Master en col 1 (50%)
+        // Primero: consumir todas excepto la última en col 0
+        focusColumnFirst()
+        for (let i = 0; i < count - 2; i++) {
+            consumeWindowIntoColumn()
+        }
+        // Ahora tenemos 2 columnas: stack (col 0) y master (col 1)
+        focusColumnRight()
+        setColumnWidth("50%")
+    }
+
+    function _applyColumns(count): void {
+        if (count < 1) return
+        const width = Math.floor(100 / count) + "%"
+        focusColumnFirst()
+        for (let i = 0; i < count; i++) {
+            setColumnWidth(width)
+            focusColumnRight()
+        }
+    }
+
+    function _applyMonocle(count): void {
+        if (count < 1) return
+        focusColumnFirst()
+        setColumnWidth("100%")
+        for (let i = 0; i < count - 1; i++) {
+            consumeWindowIntoColumn()
+        }
+    }
+
+    function promoteToMaster(): void {
+        if (!CompositorService.isNiri) return
+        if (currentLayout === "master-left") {
+            moveColumnToFirst()
+        } else if (currentLayout === "master-right") {
+            moveColumnToLast()
+        }
+    }
+
 }

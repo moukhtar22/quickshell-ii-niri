@@ -13,17 +13,20 @@ Item {
     Layout.topMargin: 25
 
     Rectangle {
-        property real itemHeight: tabBarColumn.children[0]?.baseSize ?? 56
-        property real baseHighlightHeight: tabBarColumn.children[0]?.baseHighlightHeight ?? 56
+        property real itemHeight: (tabBarColumn.children.length > 0) ? (tabBarColumn.children[0]?.baseSize ?? 56) : 56
+        property real baseHighlightHeight: (tabBarColumn.children.length > 0) ? (tabBarColumn.children[0]?.baseHighlightHeight ?? 56) : 56
+        visible: tabBarColumn.children.length > 0 && root.currentIndex < tabBarColumn.children.length
         anchors {
             top: tabBarColumn.top
             left: tabBarColumn.left
             topMargin: itemHeight * root.currentIndex + (root.expanded ? 0 : ((itemHeight - baseHighlightHeight) / 2))
         }
         radius: Appearance.rounding.full
-        color: Appearance.auroraEverywhere ? Appearance.aurora.colElevatedSurface : Appearance.colors.colSecondaryContainer
+        color: Appearance.inirEverywhere ? Appearance.inir.colSecondaryContainer
+             : Appearance.auroraEverywhere ? Appearance.aurora.colElevatedSurface 
+             : Appearance.colors.colSecondaryContainer
         implicitHeight: root.expanded ? itemHeight : baseHighlightHeight
-        implicitWidth: tabBarColumn?.children[root.currentIndex]?.visualWidth ?? 100
+        implicitWidth: visible ? (tabBarColumn.children[root.currentIndex]?.visualWidth ?? 56) : 0
 
         Behavior on anchors.topMargin {
             NumberAnimation {
@@ -40,3 +43,4 @@ Item {
         spacing: 0
     }
 }
+

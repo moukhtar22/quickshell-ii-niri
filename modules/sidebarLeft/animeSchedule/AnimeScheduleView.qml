@@ -188,6 +188,85 @@ Item {
             }
         }
         
+        // Season selector (only for Seasonal tab)
+        Item {
+            Layout.fillWidth: true
+            Layout.preferredHeight: root.currentTab === 1 ? seasonSelector.implicitHeight : 0
+            clip: true
+            visible: Layout.preferredHeight > 0
+            
+            Behavior on Layout.preferredHeight {
+                NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
+            }
+            
+            RowLayout {
+                id: seasonSelector
+                anchors.horizontalCenter: parent.horizontalCenter
+                spacing: 8
+                
+                // Previous season button
+                RippleButton {
+                    implicitWidth: 32
+                    implicitHeight: 32
+                    buttonRadius: Appearance.rounding.full
+                    enabled: !AnimeService.loading
+                    
+                    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover
+                        : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
+                        : Appearance.colors.colLayer2Hover
+                    
+                    onClicked: AnimeService.prevSeason()
+                    
+                    contentItem: MaterialSymbol {
+                        anchors.centerIn: parent
+                        text: "chevron_left"
+                        iconSize: 18
+                        color: Appearance.colors.colOnLayer1
+                    }
+                }
+                
+                // Season/Year display
+                Rectangle {
+                    implicitWidth: seasonLabel.implicitWidth + 24
+                    implicitHeight: 32
+                    radius: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.small
+                    color: Appearance.inirEverywhere ? Appearance.inir.colSecondaryContainer
+                        : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
+                        : Appearance.colors.colSecondaryContainer
+                    
+                    StyledText {
+                        id: seasonLabel
+                        anchors.centerIn: parent
+                        text: AnimeService.getSeasonDisplayName(AnimeService.selectedSeason) + " " + AnimeService.selectedYear
+                        font.pixelSize: Appearance.font.pixelSize.small
+                        font.weight: Font.Medium
+                        color: Appearance.colors.colOnSecondaryContainer
+                    }
+                }
+                
+                // Next season button
+                RippleButton {
+                    implicitWidth: 32
+                    implicitHeight: 32
+                    buttonRadius: Appearance.rounding.full
+                    enabled: !AnimeService.loading
+                    
+                    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer2Hover
+                        : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface
+                        : Appearance.colors.colLayer2Hover
+                    
+                    onClicked: AnimeService.nextSeason()
+                    
+                    contentItem: MaterialSymbol {
+                        anchors.centerIn: parent
+                        text: "chevron_right"
+                        iconSize: 18
+                        color: Appearance.colors.colOnLayer1
+                    }
+                }
+            }
+        }
+        
         // Content area with rounded container
         Rectangle {
             id: contentContainer
@@ -296,7 +375,7 @@ Item {
                 text: root.currentTab === 0 
                     ? Translation.tr("Airing on %1").arg(AnimeService.getDayName(root.selectedDay === "today" ? root.todayName : root.selectedDay))
                     : root.currentTab === 1 
-                        ? Translation.tr("Current Season")
+                        ? Translation.tr("%1 %2").arg(AnimeService.getSeasonDisplayName(AnimeService.selectedSeason)).arg(AnimeService.selectedYear)
                         : Translation.tr("Top Airing")
                 font.pixelSize: Appearance.font.pixelSize.smaller
                 color: Appearance.colors.colSubtext
