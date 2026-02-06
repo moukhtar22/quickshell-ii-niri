@@ -154,11 +154,8 @@ def fix_alacritty_import_order(config_path):
         return False, "Permission denied"
 
     import_line = 'import = ["~/.config/alacritty/colors.toml"]'
-    bare_import_pat = r"^import\s*=\s*\[.*?colors\.toml.*?\]"
     general_import_pat = r"import\s*=\s*\[.*?colors\.toml.*?\]"
 
-    has_bare_import = bool(re.search(bare_import_pat, content, re.MULTILINE))
-    has_general_section = bool(re.search(r"^\[general\]", content, re.MULTILINE))
     has_hardcoded_colors = bool(
         re.search(r"^\[colors\.(primary|normal|bright)\]", content, re.MULTILINE)
     )
@@ -166,12 +163,13 @@ def fix_alacritty_import_order(config_path):
     # Check if [general] with import is already at the top (correct state)
     lines = content.split("\n")
     top_lines = [l.strip() for l in lines[:10] if l.strip() and not l.strip().startswith("#")]
+
+    # Correct state: [general] is first real line, import is second, no hardcoded colors
     correct = (
         len(top_lines) >= 2
         and top_lines[0] == "[general]"
-        and re.match(general_import_pat, top_lines[1])
+        and bool(re.match(general_import_pat, top_lines[1]))
         and not has_hardcoded_colors
-        and not has_bare_import
     )
     if correct:
         return False, "Config is already correct"

@@ -77,6 +77,28 @@ ContentPage {
                 return result
             }
 
+            // Double-click hint
+            RowLayout {
+                Layout.fillWidth: true
+                Layout.bottomMargin: 4
+                spacing: 6
+
+                MaterialSymbol {
+                    text: "touch_app"
+                    iconSize: 16
+                    color: Appearance.m3colors.m3tertiary
+                }
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: Translation.tr("Double-click a theme to apply it reliably. A single click may not always trigger the full color generation.")
+                    font.pixelSize: Appearance.font.pixelSize.smallest
+                    color: Appearance.colors.colSubtext
+                    opacity: 0.8
+                    wrapMode: Text.WordWrap
+                }
+            }
+
             // Compact search + filter row
             RowLayout {
                 Layout.fillWidth: true
