@@ -111,7 +111,10 @@ Singleton {
             }
         }
     }
-    property int unread: 0
+    
+    // Unread count is now computed from popupList length
+    readonly property int unread: popupList.length
+    
     property var filePath: Directories.notificationsPath
     property list<Notif> list: []
     // Cached lists - updated via debounce timer
@@ -320,8 +323,6 @@ Singleton {
                         "interval": timeout,
                     });
                 }
-
-                root.unread++;
             }
             root.notify(newNotifObject);
             // console.log(notifToString(newNotifObject));
@@ -330,7 +331,13 @@ Singleton {
     }
 
     function markAllRead() {
-        root.unread = 0;
+        // Mark all popup notifications as read by removing popup flag
+        root.list.forEach((notif) => {
+            if (notif.popup) {
+                notif.popup = false;
+            }
+        });
+        triggerListChange();
     }
 
     function discardNotification(id) {
