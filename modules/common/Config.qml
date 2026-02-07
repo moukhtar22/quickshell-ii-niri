@@ -450,6 +450,7 @@ Singleton {
                 property bool borderless: false // true for no grouping of items
                 property string topLeftIcon: "spark" // Options: "distro" or any icon name in ~/.config/quickshell/ii/assets/icons
                 property bool showBackground: true
+                property bool showScrollHints: true // Show brightness/volume scroll hints on hover
                 property JsonObject blurBackground: JsonObject {
                     property bool enabled: false
                     property real overlayOpacity: 0.3

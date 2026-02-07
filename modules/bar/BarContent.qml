@@ -198,7 +198,7 @@ Item { // Bar content region
         // ScrollHint as overlay - at the inner edge of the margin space
         ScrollHint {
             id: leftScrollHint
-            reveal: barLeftSideMouseArea.hovered
+            reveal: barLeftSideMouseArea.hovered && (Config.options?.bar?.showScrollHints ?? true)
             icon: "light_mode"
             tooltipText: Translation.tr("Scroll to change brightness")
             side: "left"
@@ -356,7 +356,7 @@ Item { // Bar content region
         // ScrollHint as overlay - at the inner edge of the margin space
         ScrollHint {
             id: rightScrollHint
-            reveal: barRightSideMouseArea.hovered
+            reveal: barRightSideMouseArea.hovered && (Config.options?.bar?.showScrollHints ?? true)
             icon: "volume_up"
             tooltipText: Translation.tr("Scroll to change volume")
             side: "right"

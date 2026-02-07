@@ -216,6 +216,16 @@ ContentPage {
                     text: Translation.tr("Display a background behind the bar")
                 }
             }
+            
+            SettingsSwitch {
+                buttonIcon: "touch_app"
+                text: Translation.tr("Show scroll hints")
+                checked: Config.options?.bar?.showScrollHints ?? true
+                onCheckedChanged: Config.setNestedValue("bar.showScrollHints", checked)
+                StyledToolTip {
+                    text: Translation.tr("Show brightness/volume icons when hovering bar edges")
+                }
+            }
 
             ConflictNote {
                 visible: !root.showBackground && root.isBorderless
