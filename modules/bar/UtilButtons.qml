@@ -63,58 +63,76 @@ Item {
         Loader {
             active: Config.options?.bar?.utilButtons?.showScreenRecord ?? false
             visible: active
-            sourceComponent: CircleUtilButton {
-                id: screenRecordButton
+            sourceComponent: Item {
+                id: recordButtonWrapper
                 Layout.alignment: Qt.AlignVCenter
+                implicitWidth: screenRecordButton.implicitWidth
+                implicitHeight: screenRecordButton.implicitHeight
 
-                // Track recording state
-                property bool isRecording: Persistent.states.screenRecord?.active ?? false
+                // Check if wf-recorder is actually running
+                property bool isRecording: false
 
-                onClicked: {
-                    if (isRecording) {
-                        // Stop recording - send SIGINT to wf-recorder
-                        Quickshell.execDetached(["pkill", "-SIGINT", "wf-recorder"])
-                        Quickshell.execDetached(["notify-send", "-i", "media-record", "Screen Recording", "Recording stopped"])
-                        Persistent.states.screenRecord.active = false
-                    } else {
-                        // Start recording
-                        Quickshell.execDetached([Directories.recordScriptPath, "--fullscreen", "--sound"])
-                        Quickshell.execDetached(["notify-send", "-i", "media-record", "Screen Recording", "Recording started"])
-                        Persistent.states.screenRecord.active = true
+                Timer {
+                    interval: 1000
+                    running: true
+                    repeat: true
+                    onTriggered: {
+                        // Check if wf-recorder process exists using pgrep
+                        checkProcess.running = true
                     }
                 }
 
-                Item {
+                Process {
+                    id: checkProcess
+                    command: ["pgrep", "-x", "wf-recorder"]
+                    running: false
+
+                    onExited: (exitCode, exitStatus) => {
+                        recordButtonWrapper.isRecording = (exitCode === 0)
+                    }
+                }
+
+                CircleUtilButton {
+                    id: screenRecordButton
                     anchors.fill: parent
 
-                    MaterialSymbol {
-                        anchors.centerIn: parent
-                        horizontalAlignment: Qt.AlignHCenter
-                        fill: screenRecordButton.isRecording ? 1 : 1
-                        text: "videocam"
-                        iconSize: Appearance.font.pixelSize.large
-                        color: screenRecordButton.isRecording
-                            ? (Appearance.inirEverywhere ? Appearance.inir.colError : Appearance.colors.colError)
-                            : (Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer2)
+                    onClicked: {
+                        // Let the script handle everything (notifications, state, etc)
+                        Quickshell.execDetached([Directories.recordScriptPath, "--fullscreen", "--sound"])
                     }
 
-                    // Pulsating indicator dot when recording
-                    Rectangle {
-                        visible: screenRecordButton.isRecording
-                        width: 6
-                        height: 6
-                        radius: 3
-                        color: Appearance.inirEverywhere ? Appearance.inir.colError : Appearance.colors.colError
-                        anchors {
-                            top: parent.top
-                            right: parent.right
+                    Item {
+                        anchors.fill: parent
+
+                        MaterialSymbol {
+                            anchors.centerIn: parent
+                            horizontalAlignment: Qt.AlignHCenter
+                            fill: 1
+                            text: "videocam"
+                            iconSize: Appearance.font.pixelSize.large
+                            color: recordButtonWrapper.isRecording
+                                ? (Appearance.inirEverywhere ? Appearance.inir.colError : Appearance.colors.colError)
+                                : (Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer2)
                         }
 
-                        SequentialAnimation on opacity {
-                            running: screenRecordButton.isRecording
-                            loops: Animation.Infinite
-                            NumberAnimation { to: 0.4; duration: 800 }
-                            NumberAnimation { to: 1.0; duration: 800 }
+                        // Pulsating indicator dot when recording
+                        Rectangle {
+                            visible: recordButtonWrapper.isRecording
+                            width: 6
+                            height: 6
+                            radius: 3
+                            color: Appearance.inirEverywhere ? Appearance.inir.colError : Appearance.colors.colError
+                            anchors {
+                                top: parent.top
+                                right: parent.right
+                            }
+
+                            SequentialAnimation on opacity {
+                                running: recordButtonWrapper.isRecording
+                                loops: Animation.Infinite
+                                NumberAnimation { to: 0.4; duration: 800 }
+                                NumberAnimation { to: 1.0; duration: 800 }
+                            }
                         }
                     }
                 }

@@ -4,6 +4,7 @@
 .idea/
 *.swp
 *~
+.antropy/
 
 # AI/Dev agents (personal - not distributed)
 .kiro/
