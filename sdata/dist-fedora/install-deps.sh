@@ -131,7 +131,8 @@ FEDORA_CORE_PKGS=(
   dolphin
   kio-extras
   
-  # Terminal
+  # Terminal - kitty is default, configurable in Settings
+  kitty
   foot
   
   # Shell (required for scripts)
@@ -648,7 +649,8 @@ setup-kvantum-config "MaterialAdw"
 # Environment variables
 setup-environment-config "Bibata-Modern-Classic"
 
-# Foot terminal configuration
+# Terminal configuration
+setup-kitty-config
 setup-foot-config
 
 # Fish shell configuration

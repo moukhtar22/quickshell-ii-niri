@@ -342,10 +342,10 @@ Singleton {
                 property string network: "kitty -1 fish -c nmtui"
                 property string networkEthernet: "kcmshell6 kcm_networkmanagement"
                 property string taskManager: "missioncenter"
-                property string terminal: "ghostty" // This is only for shell actions
+                property string terminal: "kitty" // This is only for shell actions
                 property string volumeMixer: `~/.config/quickshell/ii/scripts/launch_first_available.sh "pavucontrol-qt" "pavucontrol"`
                 property string discord: "discord" // Shell command to launch Discord client
-                property string update: "foot -e sudo pacman -Syu" // Command to run system updates
+                property string update: "kitty -e sudo pacman -Syu" // Command to run system updates
             }
 
             property JsonObject background: JsonObject {
@@ -450,6 +450,7 @@ Singleton {
                 property bool borderless: false // true for no grouping of items
                 property string topLeftIcon: "spark" // Options: "distro" or any icon name in ~/.config/quickshell/ii/assets/icons
                 property bool showBackground: true
+                property bool showScrollHints: true // Show brightness/volume scroll hints on hover
                 property JsonObject blurBackground: JsonObject {
                     property bool enabled: false
                     property real overlayOpacity: 0.3

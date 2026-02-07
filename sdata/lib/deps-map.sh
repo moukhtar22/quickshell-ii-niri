@@ -137,6 +137,7 @@ DEPS_BUILD_CARGO="arch:rust fedora:cargo debian:cargo ubuntu:cargo opensuse:carg
 ###############################################################################
 DEPS_MISC_FISH="arch:fish fedora:fish debian:fish ubuntu:fish opensuse:fish void:fish"
 DEPS_MISC_GUM="arch:gum fedora:COPR:atim/gum debian:COMPILE:https://github.com/charmbracelet/gum ubuntu:COMPILE:https://github.com/charmbracelet/gum opensuse:gum void:gum"
+DEPS_MISC_STARSHIP="arch:starship fedora:starship debian:GITHUB:starship/starship ubuntu:GITHUB:starship/starship opensuse:starship void:starship"
 DEPS_MISC_DUNST="arch:dunst fedora:dunst debian:dunst ubuntu:dunst opensuse:dunst void:dunst"
 DEPS_MISC_LIBNOTIFY="arch:libnotify fedora:libnotify debian:libnotify-bin ubuntu:libnotify-bin opensuse:libnotify-tools void:libnotify"
 DEPS_MISC_IMAGEMAGICK="arch:imagemagick fedora:ImageMagick debian:imagemagick ubuntu:imagemagick opensuse:ImageMagick void:ImageMagick"
@@ -146,6 +147,7 @@ DEPS_MISC_LIBQALCULATE="arch:libqalculate fedora:libqalculate debian:qalc ubuntu
 DEPS_MISC_BRIGHTNESSCTL="arch:brightnessctl fedora:brightnessctl debian:brightnessctl ubuntu:brightnessctl opensuse:brightnessctl void:brightnessctl"
 DEPS_MISC_DOLPHIN="arch:dolphin fedora:dolphin debian:dolphin ubuntu:dolphin opensuse:dolphin void:dolphin"
 DEPS_MISC_FOOT="arch:foot fedora:foot debian:foot ubuntu:foot opensuse:foot void:foot"
+DEPS_MISC_KITTY="arch:kitty fedora:kitty debian:kitty ubuntu:kitty opensuse:kitty void:kitty"
 DEPS_MISC_POLKIT="arch:polkit fedora:polkit debian:policykit-1 ubuntu:policykit-1 opensuse:polkit void:polkit"
 DEPS_MISC_UV="arch:AUR:uv fedora:CARGO:uv debian:CARGO:uv ubuntu:CARGO:uv opensuse:CARGO:uv void:CARGO:uv"
 DEPS_MISC_KCONFIG="arch:kconfig fedora:kf6-kconfig debian:libkf6config-bin ubuntu:libkf6config-bin opensuse:kconfig void:kconfig"

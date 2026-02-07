@@ -171,6 +171,234 @@ ContentPage {
         }
     }
 
+    // ==================== DEFAULT TERMINAL ====================
+    SettingsCardSection {
+        id: terminalSection
+        expanded: true
+        icon: "terminal"
+        title: Translation.tr("Default Terminal")
+
+        SettingsGroup {
+            StyledText {
+                Layout.fillWidth: true
+                text: Translation.tr("Terminal used by shell actions, tools, keybinds, and update commands.")
+                color: Appearance.colors.colSubtext
+                font.pixelSize: Appearance.font.pixelSize.smaller
+                wrapMode: Text.WordWrap
+            }
+
+            readonly property var terminalOptions: [
+                { name: "Foot", value: "foot" },
+                { name: "Kitty", value: "kitty" },
+                { name: "Ghostty", value: "ghostty" },
+                { name: "Alacritty", value: "alacritty" },
+                { name: "WezTerm", value: "wezterm" },
+                { name: "Konsole", value: "konsole" },
+            ]
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+
+                // Foot
+                RippleButton {
+                    Layout.fillWidth: true
+                    implicitHeight: 64
+                    buttonRadius: Appearance.rounding.small
+                    readonly property bool isSelected: (Config.options?.apps?.terminal ?? "kitty") === "foot"
+                    colBackground: isSelected ? Appearance.colors.colPrimaryContainer : Appearance.colors.colLayer1
+                    colBackgroundHover: isSelected ? Appearance.colors.colPrimaryContainerHover : Appearance.colors.colLayer1Hover
+                    colRipple: isSelected ? Appearance.colors.colPrimaryContainerActive : Appearance.colors.colLayer1Active
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        spacing: 4
+                        MaterialSymbol {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "terminal"
+                            iconSize: Appearance.font.pixelSize.larger
+                            color: parent.parent.isSelected ? Appearance.m3colors.m3onPrimaryContainer : Appearance.m3colors.m3onSurface
+                        }
+                        StyledText {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "Foot"
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: parent.parent.isSelected ? Appearance.m3colors.m3onPrimaryContainer : Appearance.m3colors.m3onSurface
+                        }
+                    }
+                    onClicked: {
+                        Config.setNestedValue("apps.terminal", "foot")
+                        Config.setNestedValue("apps.update", "foot -e sudo pacman -Syu")
+                    }
+                }
+
+                // Kitty
+                RippleButton {
+                    Layout.fillWidth: true
+                    implicitHeight: 64
+                    buttonRadius: Appearance.rounding.small
+                    readonly property bool isSelected: (Config.options?.apps?.terminal ?? "kitty") === "kitty"
+                    colBackground: isSelected ? Appearance.colors.colPrimaryContainer : Appearance.colors.colLayer1
+                    colBackgroundHover: isSelected ? Appearance.colors.colPrimaryContainerHover : Appearance.colors.colLayer1Hover
+                    colRipple: isSelected ? Appearance.colors.colPrimaryContainerActive : Appearance.colors.colLayer1Active
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        spacing: 4
+                        MaterialSymbol {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "terminal"
+                            iconSize: Appearance.font.pixelSize.larger
+                            color: parent.parent.isSelected ? Appearance.m3colors.m3onPrimaryContainer : Appearance.m3colors.m3onSurface
+                        }
+                        StyledText {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "Kitty"
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: parent.parent.isSelected ? Appearance.m3colors.m3onPrimaryContainer : Appearance.m3colors.m3onSurface
+                        }
+                    }
+                    onClicked: {
+                        Config.setNestedValue("apps.terminal", "kitty")
+                        Config.setNestedValue("apps.update", "kitty -e sudo pacman -Syu")
+                    }
+                }
+
+                // Ghostty
+                RippleButton {
+                    Layout.fillWidth: true
+                    implicitHeight: 64
+                    buttonRadius: Appearance.rounding.small
+                    readonly property bool isSelected: (Config.options?.apps?.terminal ?? "kitty") === "ghostty"
+                    colBackground: isSelected ? Appearance.colors.colPrimaryContainer : Appearance.colors.colLayer1
+                    colBackgroundHover: isSelected ? Appearance.colors.colPrimaryContainerHover : Appearance.colors.colLayer1Hover
+                    colRipple: isSelected ? Appearance.colors.colPrimaryContainerActive : Appearance.colors.colLayer1Active
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        spacing: 4
+                        MaterialSymbol {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "terminal"
+                            iconSize: Appearance.font.pixelSize.larger
+                            color: parent.parent.isSelected ? Appearance.m3colors.m3onPrimaryContainer : Appearance.m3colors.m3onSurface
+                        }
+                        StyledText {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "Ghostty"
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: parent.parent.isSelected ? Appearance.m3colors.m3onPrimaryContainer : Appearance.m3colors.m3onSurface
+                        }
+                    }
+                    onClicked: {
+                        Config.setNestedValue("apps.terminal", "ghostty")
+                        Config.setNestedValue("apps.update", "ghostty -e sudo pacman -Syu")
+                    }
+                }
+
+                // Alacritty
+                RippleButton {
+                    Layout.fillWidth: true
+                    implicitHeight: 64
+                    buttonRadius: Appearance.rounding.small
+                    readonly property bool isSelected: (Config.options?.apps?.terminal ?? "kitty") === "alacritty"
+                    colBackground: isSelected ? Appearance.colors.colPrimaryContainer : Appearance.colors.colLayer1
+                    colBackgroundHover: isSelected ? Appearance.colors.colPrimaryContainerHover : Appearance.colors.colLayer1Hover
+                    colRipple: isSelected ? Appearance.colors.colPrimaryContainerActive : Appearance.colors.colLayer1Active
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        spacing: 4
+                        MaterialSymbol {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "terminal"
+                            iconSize: Appearance.font.pixelSize.larger
+                            color: parent.parent.isSelected ? Appearance.m3colors.m3onPrimaryContainer : Appearance.m3colors.m3onSurface
+                        }
+                        StyledText {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "Alacritty"
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: parent.parent.isSelected ? Appearance.m3colors.m3onPrimaryContainer : Appearance.m3colors.m3onSurface
+                        }
+                    }
+                    onClicked: {
+                        Config.setNestedValue("apps.terminal", "alacritty")
+                        Config.setNestedValue("apps.update", "alacritty -e sudo pacman -Syu")
+                    }
+                }
+
+                // WezTerm
+                RippleButton {
+                    Layout.fillWidth: true
+                    implicitHeight: 64
+                    buttonRadius: Appearance.rounding.small
+                    readonly property bool isSelected: (Config.options?.apps?.terminal ?? "kitty") === "wezterm"
+                    colBackground: isSelected ? Appearance.colors.colPrimaryContainer : Appearance.colors.colLayer1
+                    colBackgroundHover: isSelected ? Appearance.colors.colPrimaryContainerHover : Appearance.colors.colLayer1Hover
+                    colRipple: isSelected ? Appearance.colors.colPrimaryContainerActive : Appearance.colors.colLayer1Active
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        spacing: 4
+                        MaterialSymbol {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "terminal"
+                            iconSize: Appearance.font.pixelSize.larger
+                            color: parent.parent.isSelected ? Appearance.m3colors.m3onPrimaryContainer : Appearance.m3colors.m3onSurface
+                        }
+                        StyledText {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "WezTerm"
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: parent.parent.isSelected ? Appearance.m3colors.m3onPrimaryContainer : Appearance.m3colors.m3onSurface
+                        }
+                    }
+                    onClicked: {
+                        Config.setNestedValue("apps.terminal", "wezterm")
+                        Config.setNestedValue("apps.update", "wezterm -e sudo pacman -Syu")
+                    }
+                }
+
+                // Konsole
+                RippleButton {
+                    Layout.fillWidth: true
+                    implicitHeight: 64
+                    buttonRadius: Appearance.rounding.small
+                    readonly property bool isSelected: (Config.options?.apps?.terminal ?? "kitty") === "konsole"
+                    colBackground: isSelected ? Appearance.colors.colPrimaryContainer : Appearance.colors.colLayer1
+                    colBackgroundHover: isSelected ? Appearance.colors.colPrimaryContainerHover : Appearance.colors.colLayer1Hover
+                    colRipple: isSelected ? Appearance.colors.colPrimaryContainerActive : Appearance.colors.colLayer1Active
+                    ColumnLayout {
+                        anchors.centerIn: parent
+                        spacing: 4
+                        MaterialSymbol {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "terminal"
+                            iconSize: Appearance.font.pixelSize.larger
+                            color: parent.parent.isSelected ? Appearance.m3colors.m3onPrimaryContainer : Appearance.m3colors.m3onSurface
+                        }
+                        StyledText {
+                            Layout.alignment: Qt.AlignHCenter
+                            text: "Konsole"
+                            font.pixelSize: Appearance.font.pixelSize.small
+                            color: parent.parent.isSelected ? Appearance.m3colors.m3onPrimaryContainer : Appearance.m3colors.m3onSurface
+                        }
+                    }
+                    onClicked: {
+                        Config.setNestedValue("apps.terminal", "konsole")
+                        Config.setNestedValue("apps.update", "konsole -e sudo pacman -Syu")
+                    }
+                }
+            }
+
+            StyledText {
+                Layout.fillWidth: true
+                Layout.topMargin: 4
+                text: Translation.tr("Mod+T and Mod+Return use this terminal. Run './setup update' to apply keybind migration.")
+                color: Appearance.colors.colSubtext
+                font.pixelSize: Appearance.font.pixelSize.smaller
+                font.italic: true
+                wrapMode: Text.WordWrap
+            }
+        }
+    }
+
     // ==================== MATERIAL II ====================
     SettingsCardSection {
         visible: !modulesPage.isWaffle
