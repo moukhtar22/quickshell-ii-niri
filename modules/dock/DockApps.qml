@@ -61,6 +61,13 @@ Item {
     property real dragCurrentX: 0        // Current mouse position (in listView coords)
     property real dragCurrentY: 0
 
+    // Retain the last drag offsets for a single frame after drop to avoid the reverse snap
+    property bool dropSettlingActive: false
+    property string dropSettleId: ""
+    property int dropSettleIndex: -1
+    property real dropSettleOffsetX: 0
+    property real dropSettleOffsetY: 0
+
     // How far mouse must move during long-press before it's cancelled
     readonly property real dragThreshold: 18
 
@@ -156,19 +163,30 @@ Item {
     function endDrag(): void {
         if (!dragActive) return
 
+        // Keep the current drag offset so the item stays in place while the model reorders
+        const draggedItem = dockItems[dragIndex]
+        dropSettleId = draggedItem?.uniqueId ?? dragAppId
+        dropSettleIndex = dragIndex
+        // Keep offsets at zero so the item “stays put” with animations off
+        dropSettleOffsetX = 0
+        dropSettleOffsetY = 0
+        dropSettlingActive = true
+
         _log(`END dragIndex=${dragIndex} dropTarget=${dropTargetIndex} reorder=${dragIndex !== dropTargetIndex}`)
         if (dragIndex >= 0 && dropTargetIndex >= 0 && dragIndex !== dropTargetIndex) {
             _applyReorder(dragIndex, dropTargetIndex)
         }
 
-        _resetDragState()
+        _resetDragState(false)
+        // Clear settle offsets on the next tick, after the model/layout updates
+        dropSettleResetTimer.restart()
     }
 
     function cancelDrag(): void {
-        _resetDragState()
+        _resetDragState(true)
     }
 
-    function _resetDragState(): void {
+    function _resetDragState(clearDropSettle = true): void {
         dragActive = false
         dragIndex = -1
         dropTargetIndex = -1
@@ -177,6 +195,27 @@ Item {
         dragStartY = 0
         dragCurrentX = 0
         dragCurrentY = 0
+        if (clearDropSettle) {
+            dropSettleResetTimer.stop()
+            dropSettlingActive = false
+            dropSettleId = ""
+            dropSettleIndex = -1
+            dropSettleOffsetX = 0
+            dropSettleOffsetY = 0
+        }
+    }
+
+    Timer {
+        id: dropSettleResetTimer
+        interval: 2
+        repeat: false
+        onTriggered: {
+            dropSettlingActive = false
+            dropSettleId = ""
+            dropSettleIndex = -1
+            dropSettleOffsetX = 0
+            dropSettleOffsetY = 0
+        }
     }
 
     function _applyReorder(fromIdx: int, toIdx: int): void {
@@ -472,6 +511,7 @@ Item {
             // ─── Drag & Drop Properties ──────────────────────────────
             readonly property bool isBeingDragged: root.dragActive && root.dragIndex === index
             readonly property bool isDropTarget: root.dragActive && root.dropTargetIndex === index && root.dragIndex !== index
+            readonly property bool isDropSettling: !isBeingDragged && root.dropSettleId !== "" && root.dropSettleId === appToplevel?.uniqueId
             readonly property real dragDisplacement: root.getDragDisplacement(index)
 
             // Visual offset when being dragged
@@ -483,20 +523,24 @@ Item {
                 id: dockDelegateTranslate
                 x: dockDelegate.isBeingDragged
                     ? (root.vertical ? 0 : dockDelegate._dragOffsetX)
-                    : (root.vertical ? 0 : dockDelegate.dragDisplacement)
+                    : dockDelegate.isDropSettling
+                        ? (root.vertical ? 0 : root.dropSettleOffsetX)
+                        : (root.vertical ? 0 : dockDelegate.dragDisplacement)
                 y: dockDelegate.isBeingDragged
                     ? (root.vertical ? dockDelegate._dragOffsetY : 0)
-                    : (root.vertical ? dockDelegate.dragDisplacement : 0)
+                    : dockDelegate.isDropSettling
+                        ? (root.vertical ? root.dropSettleOffsetY : 0)
+                        : (root.vertical ? dockDelegate.dragDisplacement : 0)
 
                 Behavior on x {
-                    enabled: Appearance.animationsEnabled && !dockDelegate.isBeingDragged
+                    enabled: Appearance.animationsEnabled && !root.dropSettlingActive && !dockDelegate.isBeingDragged && !dockDelegate.isDropSettling
                     NumberAnimation {
                         duration: 250
                         easing.type: Easing.OutCubic
                     }
                 }
                 Behavior on y {
-                    enabled: Appearance.animationsEnabled && !dockDelegate.isBeingDragged
+                    enabled: Appearance.animationsEnabled && !root.dropSettlingActive && !dockDelegate.isBeingDragged && !dockDelegate.isDropSettling
                     NumberAnimation {
                         duration: 250
                         easing.type: Easing.OutCubic
