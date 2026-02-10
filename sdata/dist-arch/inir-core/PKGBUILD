@@ -40,7 +40,8 @@ depends=(
   # File manager
   dolphin
   
-  # Terminal - foot is default, change in niri config if you prefer another
+  # Terminal - kitty is default, configurable in Settings
+  kitty
   foot
   
   # Shell - fish is required for scripts

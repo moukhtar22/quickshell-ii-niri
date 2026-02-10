@@ -121,7 +121,10 @@ Item {
                 : "transparent"
             visible: root.isFavorite || cardMouseArea.containsMouse || starMouseArea.containsMouse
 
-            Behavior on color { ColorAnimation { duration: 100 } }
+            Behavior on color {
+                enabled: Appearance.animationsEnabled
+                animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+            }
 
             MaterialSymbol {
                 anchors.centerIn: parent

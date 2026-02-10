@@ -10,6 +10,10 @@ import Quickshell.Io
  * iNiR shell update checker service.
  * Periodically checks the git repo for new commits and exposes
  * update state to UI widgets. Separate from system Updates service.
+ *
+ * NOTE: The config directory (~/.config/quickshell/ii) is NOT a git repo.
+ * Users clone the repo elsewhere, run ./setup install, which copies files.
+ * The actual repo location is stored in version.json during installation.
  */
 Singleton {
     id: root
@@ -20,6 +24,7 @@ Singleton {
     property string latestMessage: ""
     property string localCommit: ""
     property string remoteCommit: ""
+    property string currentBranch: "main"  // Current git branch
     property bool isChecking: false
     property bool isUpdating: false
     property string lastError: ""
@@ -32,8 +37,10 @@ Singleton {
     readonly property bool showUpdate: hasUpdate && !isDismissed && !isUpdating
     readonly property bool isDismissed: dismissedCommit.length > 0 && remoteCommit === dismissedCommit
 
-    // Repo path (where ii is installed)
-    readonly property string repoPath: FileUtils.trimFileProtocol(Quickshell.shellPath("."))
+    // Repo path - try to get from version.json, fallback to config dir
+    readonly property string configDir: FileUtils.trimFileProtocol(Quickshell.shellPath("."))
+    property string repoPath: configDir  // Will be updated after reading version.json
+    property bool repoPathLoaded: false
 
     function check(): void {
         if (!enabled || isChecking || isUpdating) return
@@ -74,7 +81,74 @@ Singleton {
         repeat: false
         running: root.enabled && Config.ready
         onTriggered: {
-            print("[ShellUpdates] Starting availability check, repoPath: " + root.repoPath)
+            print("[ShellUpdates] Loading repo path from version.json...")
+            loadRepoPathProc.running = true
+        }
+    }
+
+    // Load repo path from version.json
+    Process {
+        id: loadRepoPathProc
+        property bool _handledFallback: false
+        running: false
+        onRunningChanged: if (running) _handledFallback = false
+        command: ["cat", root.configDir + "/../illogical-impulse/version.json"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try {
+                    const json = JSON.parse(text ?? "{}")
+                    if (json.repo_path && json.repo_path.length > 0) {
+                        root.repoPath = json.repo_path
+                        print("[ShellUpdates] Using repo path from version.json: " + root.repoPath)
+                        root.repoPathLoaded = true
+                        availabilityProc.running = true
+                        return
+                    }
+                } catch (e) {
+                    print("[ShellUpdates] Failed to parse version.json: " + e)
+                }
+                // No repo_path in version.json, try to find it
+                print("[ShellUpdates] No repo_path in version.json, searching for repository...")
+                loadRepoPathProc._handledFallback = true
+                searchRepoProc.running = true
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode !== 0 && !_handledFallback) {
+                print("[ShellUpdates] version.json not found, searching for repository...")
+                searchRepoProc.running = true
+            }
+        }
+    }
+
+    // Search for repository in common locations
+    Process {
+        id: searchRepoProc
+        running: false
+        command: [
+            "/usr/bin/bash", "-c",
+            // First check if config dir itself is a git repo (dev setup)
+            "if [[ -d \"" + root.configDir + "/.git\" ]]; then echo \"" + root.configDir + "\"; exit 0; fi; " +
+            // Then search common clone locations
+            "for dir in ~/inir ~/iNiR ~/Downloads/inir ~/Downloads/iNiR ~/.local/src/inir ~/.local/src/iNiR /tmp/inir /tmp/iNiR; do " +
+            "if [[ -d \"$dir/.git\" ]]; then echo \"$dir\"; exit 0; fi; done; " +
+            "echo ''"
+        ]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                const foundPath = (text ?? "").trim()
+                if (foundPath.length > 0) {
+                    root.repoPath = foundPath
+                    print("[ShellUpdates] Found repository at: " + root.repoPath)
+                } else {
+                    print("[ShellUpdates] Repository not found, using config dir: " + root.configDir)
+                    print("[ShellUpdates] Update feature will not be available")
+                }
+                root.repoPathLoaded = true
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            // Now check git availability
             availabilityProc.running = true
         }
     }
@@ -123,11 +197,31 @@ Singleton {
                 // Silent fail - network might be down, retry next interval
                 return
             }
+            currentBranchProc.running = true
+        }
+    }
+
+    // Step 3: Get current branch
+    Process {
+        id: currentBranchProc
+        running: false
+        command: ["git", "-C", root.repoPath, "rev-parse", "--abbrev-ref", "HEAD"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.currentBranch = (text ?? "").trim()
+                print("[ShellUpdates] Current branch: " + root.currentBranch)
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode !== 0) {
+                root.isChecking = false
+                return
+            }
             localCommitProc.running = true
         }
     }
 
-    // Step 3: Get local commit
+    // Step 4: Get local commit
     Process {
         id: localCommitProc
         running: false
@@ -146,9 +240,29 @@ Singleton {
         }
     }
 
-    // Step 4: Get remote commit
+    // Step 5: Get remote commit
     Process {
         id: remoteCommitProc
+        running: false
+        command: ["git", "-C", root.repoPath, "rev-parse", "--short", "origin/" + root.currentBranch]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                root.remoteCommit = (text ?? "").trim()
+            }
+        }
+        onExited: (exitCode, exitStatus) => {
+            if (exitCode !== 0) {
+                // Try origin/main as fallback (in case branch doesn't exist remotely)
+                remoteCommitFallbackProc.running = true
+                return
+            }
+            countCommitsProc.running = true
+        }
+    }
+
+    // Step 5b: Fallback to origin/main
+    Process {
+        id: remoteCommitFallbackProc
         running: false
         command: ["git", "-C", root.repoPath, "rev-parse", "--short", "origin/main"]
         stdout: StdioCollector {
@@ -158,17 +272,17 @@ Singleton {
         }
         onExited: (exitCode, exitStatus) => {
             if (exitCode !== 0) {
-                // Try origin/master as fallback
-                remoteCommitFallbackProc.running = true
+                // Try origin/master as last resort
+                remoteCommitFallback2Proc.running = true
                 return
             }
             countCommitsProc.running = true
         }
     }
 
-    // Step 4b: Fallback to origin/master
+    // Step 5c: Fallback to origin/master
     Process {
-        id: remoteCommitFallbackProc
+        id: remoteCommitFallback2Proc
         running: false
         command: ["git", "-C", root.repoPath, "rev-parse", "--short", "origin/master"]
         stdout: StdioCollector {
@@ -185,11 +299,11 @@ Singleton {
         }
     }
 
-    // Step 5: Count commits behind
+    // Step 6: Count commits behind
     Process {
         id: countCommitsProc
         running: false
-        command: ["git", "-C", root.repoPath, "rev-list", "--count", "HEAD..origin/main"]
+        command: ["git", "-C", root.repoPath, "rev-list", "--count", "HEAD..origin/" + root.currentBranch]
         stdout: StdioCollector {
             onStreamFinished: {
                 const count = parseInt((text ?? "0").trim())
@@ -215,11 +329,11 @@ Singleton {
         }
     }
 
-    // Step 6: Get latest commit message from remote
+    // Step 7: Get latest commit message from remote
     Process {
         id: latestMessageProc
         running: false
-        command: ["git", "-C", root.repoPath, "log", "--oneline", "-1", "origin/main"]
+        command: ["git", "-C", root.repoPath, "log", "--oneline", "-1", "origin/" + root.currentBranch]
         stdout: StdioCollector {
             onStreamFinished: {
                 root.latestMessage = (text ?? "").trim()

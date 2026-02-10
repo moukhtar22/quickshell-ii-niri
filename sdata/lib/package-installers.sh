@@ -588,6 +588,84 @@ EOF
   echo -e "${STY_GREEN}Foot terminal configuration set.${STY_RST}"
 }
 
+setup-kitty-config(){
+  echo -e "${STY_BLUE}Setting up Kitty terminal configuration...${STY_RST}"
+
+  mkdir -p ~/.config/kitty
+
+  # Only create if doesn't exist or is minimal
+  if [[ ! -f ~/.config/kitty/kitty.conf ]] || [[ $(wc -l < ~/.config/kitty/kitty.conf) -lt 5 ]]; then
+    cat > ~/.config/kitty/kitty.conf << 'EOF'
+# iNiR wallpaper theming - colors from quickshell
+include current-theme.conf
+
+# Font configuration
+font_family      JetBrainsMono Nerd Font
+font_size        11.0
+
+# Cursor
+cursor_shape beam
+cursor_beam_thickness 1.5
+cursor_blink_interval 0
+
+# Scrollback
+scrollback_lines 10000
+
+# Terminal bell
+enable_audio_bell no
+visual_bell_duration 0.0
+
+# Window
+window_padding_width 25
+hide_window_decorations yes
+confirm_os_window_close 0
+
+# Transparency and blur (Wayland)
+background_opacity 0.85
+background_blur 32
+
+# Remote control for live color reload
+listen_on unix:/tmp/kitty-socket
+allow_remote_control socket-only
+
+# Tab bar
+tab_bar_style powerline
+
+# Performance
+repaint_delay 10
+input_delay 3
+sync_to_monitor yes
+
+# Keyboard shortcuts
+map ctrl+c copy_or_interrupt
+map ctrl+v paste_from_clipboard
+map ctrl+shift+c copy_to_clipboard
+map ctrl+shift+v paste_from_clipboard
+map ctrl+plus change_font_size all +1.0
+map ctrl+minus change_font_size all -1.0
+map ctrl+0 change_font_size all 0
+EOF
+  else
+    # Existing config - ensure include line is present for theming
+    if ! grep -q "include.*current-theme.conf" ~/.config/kitty/kitty.conf; then
+      echo -e "${STY_YELLOW}Adding current-theme.conf include to existing kitty.conf...${STY_RST}"
+      sed -i '1i include current-theme.conf' ~/.config/kitty/kitty.conf
+    fi
+    # Add transparency if not present
+    if ! grep -q "background_opacity" ~/.config/kitty/kitty.conf; then
+      echo -e "${STY_YELLOW}Adding transparency settings to kitty.conf...${STY_RST}"
+      printf '\n# Transparency and blur (Wayland)\nbackground_opacity 0.85\nbackground_blur 32\n' >> ~/.config/kitty/kitty.conf
+    fi
+    # Add remote control socket if not present
+    if ! grep -q "listen_on" ~/.config/kitty/kitty.conf; then
+      echo -e "${STY_YELLOW}Adding remote control socket to kitty.conf...${STY_RST}"
+      printf '\n# Remote control for live color reload\nlisten_on unix:/tmp/kitty-socket\nallow_remote_control socket-only\n' >> ~/.config/kitty/kitty.conf
+    fi
+  fi
+
+  echo -e "${STY_GREEN}Kitty terminal configuration set.${STY_RST}"
+}
+
 setup-fish-config(){
   echo -e "${STY_BLUE}Setting up Fish shell configuration...${STY_RST}"
 
@@ -813,6 +891,7 @@ setup-all-configs(){
   setup-gtk-config
   setup-kvantum-config
   setup-environment-config
+  setup-kitty-config
   setup-foot-config
   setup-fish-config
   setup-bash-config

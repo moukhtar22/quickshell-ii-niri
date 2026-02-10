@@ -106,10 +106,10 @@ Item { // Player instance - Old style design
             tmp="$out.tmp"
             /usr/bin/curl -sSL --connect-timeout 10 --max-time 30 "$target" -o "$tmp" && \
             [ -s "$tmp" ] && /usr/bin/mv -f "$tmp" "$out" || { rm -f "$tmp"; exit 1; }
-        `, 
-        "_", 
-        targetFile, 
-        artFilePath, 
+        `,
+        "_",
+        targetFile,
+        artFilePath,
         root.artDownloadLocation
         ]
         onExited: (exitCode) => {
@@ -211,8 +211,11 @@ Item { // Player instance - Old style design
             color: blendedColors.colPrimary
             lineWidth: 3
             amplitudeScale: 1.2
-            
-            Behavior on opacity { NumberAnimation { duration: 300 } }
+
+            Behavior on opacity {
+                enabled: Appearance.animationsEnabled
+                animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+            }
         }
 
         RowLayout {

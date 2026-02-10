@@ -28,7 +28,13 @@ Scope {
     property string _positionKey: `${root.position}_${barIsVertical}`
 
     Variants {
-        model: Quickshell.screens
+        model: {
+            const screens = Quickshell.screens;
+            const list = Config.options?.dock?.screenList ?? [];
+            if (!list || list.length === 0)
+                return screens;
+            return screens.filter(screen => list.includes(screen.name));
+        }
 
         Loader {
             id: panelLoader

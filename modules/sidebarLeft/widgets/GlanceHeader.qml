@@ -48,11 +48,11 @@ Item {
                     implicitWidth: 36
                     implicitHeight: 36
                     buttonRadius: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.full
-                    colBackground: Appearance.inirEverywhere ? "transparent" 
+                    colBackground: Appearance.inirEverywhere ? "transparent"
                         : Appearance.auroraEverywhere ? "transparent" : Appearance.colors.colTertiaryContainer
-                    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover 
+                    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover
                         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface : (Appearance.colors.colTertiaryContainerHover ?? Appearance.colors.colTertiaryContainer)
-                    colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer1Active 
+                    colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer1Active
                         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceActive : (Appearance.colors.colTertiaryContainerActive ?? Appearance.colors.colTertiaryContainer)
                     visible: GameMode.active && (Config.options?.sidebar?.widgets?.glance?.showGameMode ?? true)
                     onClicked: GameMode.toggle()
@@ -75,11 +75,11 @@ Item {
                     implicitWidth: 36
                     implicitHeight: 36
                     buttonRadius: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.full
-                    colBackground: Appearance.inirEverywhere ? "transparent" 
+                    colBackground: Appearance.inirEverywhere ? "transparent"
                         : Appearance.auroraEverywhere ? "transparent" : Appearance.colors.colPrimaryContainer
-                    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover 
+                    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover
                         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface : Appearance.colors.colPrimaryContainerHover
-                    colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer1Active 
+                    colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer1Active
                         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceActive : Appearance.colors.colPrimaryContainerActive
                     visible: Notifications.silent && (Config.options?.sidebar?.widgets?.glance?.showDnd ?? true)
                     onClicked: Notifications.toggleSilent()
@@ -110,9 +110,9 @@ Item {
                         implicitHeight: 36
                         buttonRadius: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.full
                         colBackground: "transparent"
-                        colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover 
+                        colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover
                             : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface : Appearance.colors.colLayer1Hover
-                        colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer1Active 
+                        colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer1Active
                             : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceActive : Appearance.colors.colLayer1Active
                         onClicked: Audio.toggleMute()
 
@@ -123,13 +123,13 @@ Item {
 
                                 MaterialSymbol {
                                     anchors.verticalCenter: parent.verticalCenter
-                                    text: Audio.sink?.audio?.muted ? "volume_off" : 
+                                    text: Audio.sink?.audio?.muted ? "volume_off" :
                                           (Audio.sink?.audio?.volume ?? 0) < 0.01 ? "volume_mute" :
                                           (Audio.sink?.audio?.volume ?? 0) < 0.5 ? "volume_down" : "volume_up"
                                     iconSize: 18
                                     fill: Audio.sink?.audio?.muted ? 1 : 0
-                                    color: Audio.sink?.audio?.muted 
-                                        ? (Appearance.inirEverywhere ? Appearance.inir.colTextSecondary : Appearance.colors.colSubtext) 
+                                    color: Audio.sink?.audio?.muted
+                                        ? (Appearance.inirEverywhere ? Appearance.inir.colTextSecondary : Appearance.colors.colSubtext)
                                         : (Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer0)
                                     Behavior on fill { enabled: Appearance.animationsEnabled; NumberAnimation { duration: Appearance.animation.elementMoveFast.duration } }
                                     Behavior on color { enabled: Appearance.animationsEnabled; animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this) }
@@ -140,8 +140,8 @@ Item {
                                     text: Math.round((Audio.sink?.audio?.volume ?? 0) * 100)
                                     font.pixelSize: Appearance.font.pixelSize.smaller
                                     font.family: Appearance.font.family.numbers
-                                    color: Audio.sink?.audio?.muted 
-                                        ? (Appearance.inirEverywhere ? Appearance.inir.colTextSecondary : Appearance.colors.colSubtext) 
+                                    color: Audio.sink?.audio?.muted
+                                        ? (Appearance.inirEverywhere ? Appearance.inir.colTextSecondary : Appearance.colors.colSubtext)
                                         : (Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer0)
 
                                     Behavior on color {
@@ -164,7 +164,7 @@ Item {
                         }
                     }
                 }
-                
+
                 // Widget Management Button
                 RippleButton {
                     id: settingsBtn
@@ -172,17 +172,17 @@ Item {
                     implicitHeight: 36
                     buttonRadius: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.full
                     colBackground: "transparent"
-                    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover 
+                    colBackgroundHover: Appearance.inirEverywhere ? Appearance.inir.colLayer1Hover
                         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurface : Appearance.colors.colLayer1Hover
-                    colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer1Active 
+                    colRipple: Appearance.inirEverywhere ? Appearance.inir.colLayer1Active
                         : Appearance.auroraEverywhere ? Appearance.aurora.colSubSurfaceActive : Appearance.colors.colLayer1Active
-                    
+
                     onClicked: {
                         const isWaffle = (Config.options?.panelFamily === "waffle" && Config.options?.waffles?.settings?.useMaterialStyle !== true);
                         const settingsPath = isWaffle ? Quickshell.shellPath("waffleSettings.qml") : Quickshell.shellPath("settings.qml");
                         const pageIndex = isWaffle ? 6 : 5; // Modules (Waffle) vs Interface (ii)
-                        const section = isWaffle ? Translation.tr("Widgets Panel") : Translation.tr("Media player");
-                        
+                        const section = isWaffle ? Translation.tr("Widgets Panel") : Translation.tr("Widgets");
+
                         Quickshell.execDetached(["/usr/bin/env", "QS_SETTINGS_PAGE=" + pageIndex, "QS_SETTINGS_SECTION=" + section, "/usr/bin/qs", "-n", "-p", settingsPath]);
                     }
 
@@ -206,10 +206,10 @@ Item {
             Layout.fillWidth: true
             Layout.bottomMargin: Appearance.inirEverywhere ? 10 : 0
             spacing: 8
-            
+
             StyledText {
                 // For inir: show weekday and month only (no day number since calendar shows it)
-                text: Appearance.inirEverywhere 
+                text: Appearance.inirEverywhere
                     ? root.locale.toString(DateTime.clock.date, "dddd, MMMM yyyy")
                     : root.locale.toString(DateTime.clock.date, "dddd, d MMMM")
                 font.pixelSize: Appearance.font.pixelSize.normal

@@ -4,6 +4,9 @@
 .idea/
 *.swp
 *~
+.antropy/
+.mcp.json
+.zed/
 
 # AI/Dev agents (personal - not distributed)
 .kiro/
@@ -16,7 +19,7 @@ AGENTS.md
 **/AGENTS.md
 CLAUDE.md
 **/CLAUDE.md
-prompts/    
+prompts/
 .continue/
 context-architect/
 inir-docs/

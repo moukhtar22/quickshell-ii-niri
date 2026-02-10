@@ -23,6 +23,7 @@ Button {
     property bool rippleEnabled: true
     property var downAction // When left clicking (down)
     property var releaseAction // When left clicking (release)
+    property var moveAction // When mouse moves while pressed (for drag support)
     property var altAction // When right clicking
     property var middleClickAction // When middle clicking
 
@@ -34,10 +35,10 @@ Button {
     property color colRippleToggled: Appearance?.colors.colPrimaryActive ?? "#D6CEE2"
 
     opacity: root.enabled ? 1 : 0.4
-    property color buttonColor: ColorUtils.transparentize(root.toggled ? 
-        (root.buttonHovered ? colBackgroundToggledHover : 
+    property color buttonColor: ColorUtils.transparentize(root.toggled ?
+        (root.buttonHovered ? colBackgroundToggledHover :
             colBackgroundToggled) :
-        (root.buttonHovered ? colBackgroundHover : 
+        (root.buttonHovered ? colBackgroundHover :
             colBackground), root.enabled ? 0 : 1)
     property color rippleColor: root.toggled ? colRippleToggled : colRipple
 
@@ -66,7 +67,7 @@ Button {
         hoverEnabled: true
         cursorShape: root.pointingHandCursor ? Qt.PointingHandCursor : Qt.ArrowCursor
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
-        onPressed: (event) => { 
+        onPressed: (event) => {
             if(event.button === Qt.RightButton) {
                 if (root.altAction) root.altAction(event);
                 return;
@@ -81,6 +82,9 @@ Button {
             const {x,y} = event
             startRipple(x, y)
         }
+        onPositionChanged: (event) => {
+            if (root.moveAction) root.moveAction(event);
+        }
         onReleased: (event) => {
             root.down = false
             if (event.button != Qt.LeftButton) return;
@@ -91,6 +95,7 @@ Button {
         }
         onCanceled: (event) => {
             root.down = false
+            if (root.releaseAction) root.releaseAction();
             if (!root.rippleEnabled) return;
             rippleFadeAnim.restart();
         }

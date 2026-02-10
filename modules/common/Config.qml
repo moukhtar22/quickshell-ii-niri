@@ -11,7 +11,7 @@ Singleton {
     property bool ready: false
     property int readWriteDelay: 50 // milliseconds
     property bool blockWrites: false
-    
+
     signal configChanged()
 
     function flushWrites(): void {
@@ -103,17 +103,17 @@ Singleton {
 
         JsonAdapter {
             id: configOptionsJsonAdapter
-            
+
             // Panel system
             property list<string> enabledPanels: [
-                "iiBar", "iiBackground", "iiCheatsheet", "iiControlPanel", "iiDock", "iiLock", "iiMediaControls", 
-                "iiNotificationPopup", "iiOnScreenDisplay", "iiOnScreenKeyboard", "iiOverlay", 
-                "iiOverview", "iiPolkit", "iiRegionSelector", "iiScreenCorners", "iiSessionScreen", 
+                "iiBar", "iiBackground", "iiCheatsheet", "iiControlPanel", "iiDock", "iiLock", "iiMediaControls",
+                "iiNotificationPopup", "iiOnScreenDisplay", "iiOnScreenKeyboard", "iiOverlay",
+                "iiOverview", "iiPolkit", "iiRegionSelector", "iiScreenCorners", "iiSessionScreen",
                 "iiSidebarLeft", "iiSidebarRight", "iiVerticalBar", "iiWallpaperSelector", "iiAltSwitcher", "iiClipboard"
             ]
             property string panelFamily: "ii" // "ii" or "waffle"
             property bool familyTransitionAnimation: true // Show animated overlay when switching families
-            
+
             property JsonObject policies: JsonObject {
                 property int ai: 1 // 0: No | 1: Yes | 2: Local
                 property int weeb: 1 // 0: No | 1: Open | 2: Closet
@@ -342,10 +342,10 @@ Singleton {
                 property string network: "kitty -1 fish -c nmtui"
                 property string networkEthernet: "kcmshell6 kcm_networkmanagement"
                 property string taskManager: "missioncenter"
-                property string terminal: "ghostty" // This is only for shell actions
+                property string terminal: "kitty" // This is only for shell actions
                 property string volumeMixer: `~/.config/quickshell/ii/scripts/launch_first_available.sh "pavucontrol-qt" "pavucontrol"`
                 property string discord: "discord" // Shell command to launch Discord client
-                property string update: "foot -e sudo pacman -Syu" // Command to run system updates
+                property string update: "kitty -e sudo pacman -Syu" // Command to run system updates
             }
 
             property JsonObject background: JsonObject {
@@ -413,6 +413,7 @@ Singleton {
                     property string wallpaperPath: ""
                     property string thumbnailPath: "" // Thumbnail for animated wallpapers (video/gif)
                     property bool enableAnimation: false // Enable animated wallpapers (video/gif) in backdrop (disabled by default for performance)
+                    property bool enableAnimatedBlur: false // Enable blur for animated wallpapers (video/gif) - has performance impact
                     property int blurRadius: 32
                     property int dim: 35 // 0-100
                     property real saturation: 1.0
@@ -450,6 +451,7 @@ Singleton {
                 property bool borderless: false // true for no grouping of items
                 property string topLeftIcon: "spark" // Options: "distro" or any icon name in ~/.config/quickshell/ii/assets/icons
                 property bool showBackground: true
+                property bool showScrollHints: true // Show brightness/volume scroll hints on hover
                 property JsonObject blurBackground: JsonObject {
                     property bool enabled: false
                     property real overlayOpacity: 0.3
@@ -504,6 +506,7 @@ Singleton {
                 property list<string> screenList: [] // List of names, like "eDP-1", find out with 'hyprctl monitors' command
                 property JsonObject utilButtons: JsonObject {
                     property bool showScreenSnip: true
+                    property bool showScreenRecord: true
                     property bool showColorPicker: false
                     property bool showMicToggle: false
                     property bool showKeyboardToggle: true
@@ -585,6 +588,7 @@ Singleton {
                 property list<string> pinnedApps: [ // IDs of pinned entries
                     "org.kde.dolphin", "kitty",]
                 property list<string> ignoredAppRegexes: []
+                property list<string> screenList: [] // List of screen names to show dock on (e.g. ["DP-2"]). Empty = all screens
                 // Smart indicator settings
                 property bool smartIndicator: true // Show which window is focused
                 property bool showAllWindowDots: true // Show dots for all windows (even inactive apps)
@@ -592,6 +596,8 @@ Singleton {
                 // Window preview on hover
                 property bool hoverPreview: true // Show window preview popup on hover
                 property int hoverPreviewDelay: 400 // Delay before showing preview (ms)
+                // Drag & drop reordering
+                property bool enableDragReorder: true // Allow drag to reorder pinned apps
             }
 
             property JsonObject interactions: JsonObject {
@@ -663,12 +669,18 @@ Singleton {
                 property int timeoutLow: 5000
                 property int timeoutNormal: 7000
                 property int timeoutCritical: 0
+                // Always use user timeout settings instead of app-defined ones
+                property bool ignoreAppTimeout: false
                 // Posición del popup de notificaciones: topRight, bottomRight, topLeft, bottomLeft
                 property string position: "topRight"
                 // Margen respecto a los bordes de pantalla (px)
                 property int edgeMargin: 4
+                // Slightly enlarge notifications when the mouse hovers over them
+                property bool scaleOnHover: false
                 // Do Not Disturb mode
                 property bool silent: false
+                // Use legacy manual counter (false = auto-sync with popup list, true = manual counter)
+                property bool useLegacyCounter: true
             }
 
             property JsonObject osd: JsonObject {
@@ -1010,7 +1022,7 @@ Singleton {
                 }
                 property bool secondPrecision: false
             }
-            
+
             property JsonObject wallpaperSelector: JsonObject {
                 property bool useSystemFileDialog: false
                 property string selectionTarget: "main"
@@ -1019,7 +1031,7 @@ Singleton {
             property JsonObject screenRecord: JsonObject {
                 property string savePath: "" // Empty = use XDG Videos or ~/Videos
             }
-            
+
             property JsonObject windows: JsonObject {
                 property bool showTitlebar: true // Client-side decoration for shell apps
                 property bool centerTitle: true
@@ -1074,12 +1086,15 @@ Singleton {
                     property string wallpaperPath: "" // Empty = use main wallpaper
                     property string thumbnailPath: "" // Thumbnail for animated wallpapers (video/gif)
                     property bool useMainWallpaper: true
+                    property bool enableAnimation: true // Enable animated wallpapers (video/gif)
                     property JsonObject effects: JsonObject {
                         property bool enableBlur: false
                         property int blurRadius: 32
                         property int blurStatic: 0
                         property int dim: 0
                         property int dynamicDim: 0
+                        property bool enableAnimatedBlur: false // Enable blur for animated wallpapers (video/gif) - has performance impact
+                        property int thumbnailBlurStrength: 70 // Blur strength for animated wallpapers (0-100)
                     }
                     property JsonObject backdrop: JsonObject {
                         property bool enable: false
@@ -1088,6 +1103,7 @@ Singleton {
                         property string wallpaperPath: ""
                         property string thumbnailPath: "" // Thumbnail for animated wallpapers (video/gif)
                         property bool enableAnimation: false // Enable animated wallpapers (video/gif) in backdrop (disabled by default for performance)
+                        property bool enableAnimatedBlur: false // Enable blur for animated wallpapers (video/gif) - has performance impact
                         property int blurRadius: 32
                         property int dim: 35
                         property real saturation: 1.0

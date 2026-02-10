@@ -766,9 +766,25 @@ ContentPage {
 
     // Terminal Colors Section
     SettingsCardSection {
+        id: terminalColorsSection
         expanded: false
         icon: "terminal"
         title: Translation.tr("Terminal Colors")
+
+        // Track which terminals are installed (detected by auto-detect)
+        property var installedTerminals: ({})
+        property bool detectionDone: false
+
+        function runDetection() {
+            terminalDetector.running = true
+        }
+
+        // Auto-detect on first expand
+        onExpandedChanged: {
+            if (expanded && !detectionDone) {
+                runDetection()
+            }
+        }
 
         SettingsGroup {
             StyledText {
@@ -787,13 +803,30 @@ ContentPage {
             }
 
             // Individual terminal toggles
-            StyledText {
+            RowLayout {
                 Layout.fillWidth: true
                 Layout.topMargin: 12
-                text: Translation.tr("Generate color configs for:")
-                color: Appearance.colors.colSubtext
-                font.pixelSize: Appearance.font.pixelSize.smaller
-                wrapMode: Text.WordWrap
+                spacing: 6
+
+                StyledText {
+                    Layout.fillWidth: true
+                    text: Translation.tr("Generate color configs for:")
+                    color: Appearance.colors.colSubtext
+                    font.pixelSize: Appearance.font.pixelSize.smaller
+                    wrapMode: Text.WordWrap
+                }
+
+                // Installed count indicator
+                StyledText {
+                    visible: terminalColorsSection.detectionDone
+                    text: {
+                        const installed = terminalColorsSection.installedTerminals
+                        const count = Object.values(installed).filter(v => v).length
+                        return Translation.tr("%1 installed").arg(count)
+                    }
+                    font.pixelSize: Appearance.font.pixelSize.smallest
+                    color: Appearance.colors.colSubtext
+                }
             }
 
             ConfigRow {
@@ -802,23 +835,26 @@ ContentPage {
 
                 ConfigSwitch {
                     buttonIcon: "terminal"
-                    text: "Kitty"
+                    text: "Kitty" + (terminalColorsSection.detectionDone && !(terminalColorsSection.installedTerminals["kitty"] ?? false) ? " ⌀" : "")
                     checked: Config.options?.appearance?.wallpaperTheming?.terminals?.kitty ?? true
                     onCheckedChanged: Config.setNestedValue("appearance.wallpaperTheming.terminals.kitty", checked)
+                    opacity: terminalColorsSection.detectionDone && !(terminalColorsSection.installedTerminals["kitty"] ?? false) ? 0.5 : 1
                 }
 
                 ConfigSwitch {
                     buttonIcon: "terminal"
-                    text: "Alacritty"
+                    text: "Alacritty" + (terminalColorsSection.detectionDone && !(terminalColorsSection.installedTerminals["alacritty"] ?? false) ? " ⌀" : "")
                     checked: Config.options?.appearance?.wallpaperTheming?.terminals?.alacritty ?? true
                     onCheckedChanged: Config.setNestedValue("appearance.wallpaperTheming.terminals.alacritty", checked)
+                    opacity: terminalColorsSection.detectionDone && !(terminalColorsSection.installedTerminals["alacritty"] ?? false) ? 0.5 : 1
                 }
 
                 ConfigSwitch {
                     buttonIcon: "terminal"
-                    text: "Foot"
+                    text: "Foot" + (terminalColorsSection.detectionDone && !(terminalColorsSection.installedTerminals["foot"] ?? false) ? " ⌀" : "")
                     checked: Config.options?.appearance?.wallpaperTheming?.terminals?.foot ?? true
                     onCheckedChanged: Config.setNestedValue("appearance.wallpaperTheming.terminals.foot", checked)
+                    opacity: terminalColorsSection.detectionDone && !(terminalColorsSection.installedTerminals["foot"] ?? false) ? 0.5 : 1
                 }
             }
 
@@ -828,23 +864,26 @@ ContentPage {
 
                 ConfigSwitch {
                     buttonIcon: "terminal"
-                    text: "WezTerm"
+                    text: "WezTerm" + (terminalColorsSection.detectionDone && !(terminalColorsSection.installedTerminals["wezterm"] ?? false) ? " ⌀" : "")
                     checked: Config.options?.appearance?.wallpaperTheming?.terminals?.wezterm ?? true
                     onCheckedChanged: Config.setNestedValue("appearance.wallpaperTheming.terminals.wezterm", checked)
+                    opacity: terminalColorsSection.detectionDone && !(terminalColorsSection.installedTerminals["wezterm"] ?? false) ? 0.5 : 1
                 }
 
                 ConfigSwitch {
                     buttonIcon: "terminal"
-                    text: "Ghostty"
+                    text: "Ghostty" + (terminalColorsSection.detectionDone && !(terminalColorsSection.installedTerminals["ghostty"] ?? false) ? " ⌀" : "")
                     checked: Config.options?.appearance?.wallpaperTheming?.terminals?.ghostty ?? true
                     onCheckedChanged: Config.setNestedValue("appearance.wallpaperTheming.terminals.ghostty", checked)
+                    opacity: terminalColorsSection.detectionDone && !(terminalColorsSection.installedTerminals["ghostty"] ?? false) ? 0.5 : 1
                 }
 
                 ConfigSwitch {
                     buttonIcon: "terminal"
-                    text: "Konsole"
+                    text: "Konsole" + (terminalColorsSection.detectionDone && !(terminalColorsSection.installedTerminals["konsole"] ?? false) ? " ⌀" : "")
                     checked: Config.options?.appearance?.wallpaperTheming?.terminals?.konsole ?? true
                     onCheckedChanged: Config.setNestedValue("appearance.wallpaperTheming.terminals.konsole", checked)
+                    opacity: terminalColorsSection.detectionDone && !(terminalColorsSection.installedTerminals["konsole"] ?? false) ? 0.5 : 1
                 }
             }
 
@@ -854,9 +893,10 @@ ContentPage {
 
                 ConfigSwitch {
                     buttonIcon: "rocket_launch"
-                    text: "Starship"
+                    text: "Starship" + (terminalColorsSection.detectionDone && !(terminalColorsSection.installedTerminals["starship"] ?? false) ? " ⌀" : "")
                     checked: Config.options?.appearance?.wallpaperTheming?.terminals?.starship ?? true
                     onCheckedChanged: Config.setNestedValue("appearance.wallpaperTheming.terminals.starship", checked)
+                    opacity: terminalColorsSection.detectionDone && !(terminalColorsSection.installedTerminals["starship"] ?? false) ? 0.5 : 1
                     StyledToolTip {
                         text: Translation.tr("Starship prompt palette - use 'palette = \"ii\"' in starship.toml")
                     }
@@ -886,12 +926,14 @@ ContentPage {
                     }
 
                     StyledText {
-                        text: Translation.tr("Auto-detect installed")
+                        text: terminalColorsSection.detectionDone
+                            ? Translation.tr("Re-detect installed")
+                            : Translation.tr("Auto-detect installed")
                         font.pixelSize: Appearance.font.pixelSize.smaller
                     }
                 }
 
-                onClicked: terminalDetector.running = true
+                onClicked: terminalColorsSection.runDetection()
 
                 Process {
                     id: terminalDetector
@@ -902,16 +944,25 @@ ContentPage {
                         "if command -v $term &>/dev/null; then echo \"$term:true\"; " +
                         "else echo \"$term:false\"; fi; done"
                     ]
-                    onExited: (exitCode, exitStatus) => {
-                        if (exitCode === 0) {
-                            const lines = stdout.trim().split('\n');
-                            lines.forEach(line => {
-                                const [term, installed] = line.split(':');
-                                if (term && installed) {
-                                    Config.setNestedValue(`appearance.wallpaperTheming.terminals.${term}`, installed === 'true');
+                    stdout: SplitParser {
+                        onRead: (line) => {
+                            const parts = line.split(':')
+                            if (parts.length === 2) {
+                                const term = parts[0].trim()
+                                const installed = parts[1].trim() === 'true'
+                                // Update installed tracking
+                                const current = Object.assign({}, terminalColorsSection.installedTerminals)
+                                current[term] = installed
+                                terminalColorsSection.installedTerminals = current
+                                // Auto-disable terminals that aren't installed (only on first detection)
+                                if (!terminalColorsSection.detectionDone && !installed) {
+                                    Config.setNestedValue(`appearance.wallpaperTheming.terminals.${term}`, false)
                                 }
-                            });
+                            }
                         }
+                    }
+                    onExited: (exitCode, exitStatus) => {
+                        terminalColorsSection.detectionDone = true
                     }
                 }
             }

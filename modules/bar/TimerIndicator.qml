@@ -74,8 +74,8 @@ MouseArea {
 
     readonly property color accentColor: {
         if (pomodoroActive) {
-            return (TimerService?.pomodoroBreak ?? false) 
-                ? (Appearance.colors.colTertiary ?? Appearance.m3colors.m3tertiary) 
+            return (TimerService?.pomodoroBreak ?? false)
+                ? (Appearance.colors.colTertiary ?? Appearance.m3colors.m3tertiary)
                 : Appearance.colors.colPrimary
         }
         if (countdownActive)
@@ -92,12 +92,12 @@ MouseArea {
 
     function openTimerPanel(): void {
         GlobalStates.sidebarRightOpen = true
- 
+
         if (Persistent?.states?.sidebar?.bottomGroup) {
             Persistent.states.sidebar.bottomGroup.tab = 3
             Persistent.states.sidebar.bottomGroup.collapsed = false
         }
- 
+
         if (Persistent?.states?.timer) {
             if (root.pomodoroActive) {
                 Persistent.states.timer.tab = 0
@@ -167,8 +167,14 @@ MouseArea {
             return "transparent"
         }
 
-        Behavior on color { ColorAnimation { duration: 100 } }
-        Behavior on scale { NumberAnimation { duration: 100; easing.type: Easing.OutCubic } }
+        Behavior on color {
+            enabled: Appearance.animationsEnabled
+            animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+        }
+        Behavior on scale {
+            enabled: Appearance.animationsEnabled
+            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+        }
     }
 
     RowLayout {
@@ -179,8 +185,8 @@ MouseArea {
         MaterialSymbol {
             text: root.showPinnedIdle ? "schedule" : root.iconName
             iconSize: Appearance.font.pixelSize.normal
-            color: root.paused 
-                ? (Appearance.inirEverywhere ? Appearance.inir.colTextMuted : Appearance.colors.colOnLayer1Inactive) 
+            color: root.paused
+                ? (Appearance.inirEverywhere ? Appearance.inir.colTextMuted : Appearance.colors.colOnLayer1Inactive)
                 : root.accentColor
             Layout.alignment: Qt.AlignVCenter
 
@@ -195,8 +201,8 @@ MouseArea {
         StyledText {
             text: root.showPinnedIdle ? Translation.tr("Timer") : root.timeText
             font.pixelSize: Appearance.font.pixelSize.small
-            color: root.paused 
-                ? (Appearance.inirEverywhere ? Appearance.inir.colTextMuted : Appearance.colors.colOnLayer1Inactive) 
+            color: root.paused
+                ? (Appearance.inirEverywhere ? Appearance.inir.colTextMuted : Appearance.colors.colOnLayer1Inactive)
                 : Appearance.colors.colOnLayer1
             Layout.alignment: Qt.AlignVCenter
         }

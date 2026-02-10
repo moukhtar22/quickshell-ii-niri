@@ -37,9 +37,10 @@ Variants {
 
         // Material ii backdrop config (independent)
         readonly property var iiBackdrop: Config.options?.background?.backdrop ?? {}
-        
+
         readonly property int backdropBlurRadius: iiBackdrop.blurRadius ?? 32
         readonly property int thumbnailBlurStrength: Config.options?.background?.effects?.thumbnailBlurStrength ?? 50
+        readonly property bool enableAnimatedBlur: iiBackdrop.enableAnimatedBlur ?? false
         readonly property int backdropDim: iiBackdrop.dim ?? 35
         readonly property real backdropSaturation: iiBackdrop.saturation ?? 0
         readonly property real backdropContrast: iiBackdrop.contrast ?? 0
@@ -141,8 +142,8 @@ Variants {
                 anchors.fill: parent
                 fillMode: Image.PreserveAspectCrop
                 source: backdropWindow.enableAnimation && backdropWindow.wallpaperIsGif && backdropWindow.effectiveWallpaperPath
-                    ? (backdropWindow.effectiveWallpaperPath.startsWith("file://") 
-                        ? backdropWindow.effectiveWallpaperPath 
+                    ? (backdropWindow.effectiveWallpaperPath.startsWith("file://")
+                        ? backdropWindow.effectiveWallpaperPath
                         : "file://" + backdropWindow.effectiveWallpaperPath)
                     : ""
                 asynchronous: true
@@ -151,8 +152,15 @@ Variants {
                 mipmap: true
                 visible: !backdropWindow.useAuroraStyle && backdropWindow.enableAnimation && backdropWindow.wallpaperIsGif
                 playing: visible
-                
-                // Note: Blur is disabled for GIFs to maintain performance
+
+                layer.enabled: Appearance.effectsEnabled && backdropWindow.enableAnimatedBlur && backdropWindow.backdropBlurRadius > 0
+                layer.effect: MultiEffect {
+                    blurEnabled: true
+                    blur: (backdropWindow.backdropBlurRadius * Math.max(0, Math.min(1, backdropWindow.thumbnailBlurStrength / 100))) / 100.0
+                    blurMax: 64
+                    saturation: backdropWindow.backdropSaturation
+                    contrast: backdropWindow.backdropContrast
+                }
             }
 
             // Video wallpaper support (when enableAnimation is true)
@@ -170,13 +178,13 @@ Variants {
                 loops: MediaPlayer.Infinite
                 muted: true
                 autoPlay: true
-                
+
                 onPlaybackStateChanged: {
                     if (playbackState === MediaPlayer.StoppedState && visible && backdropWindow.enableAnimation && backdropWindow.wallpaperIsVideo) {
                         play()
                     }
                 }
-                
+
                 onVisibleChanged: {
                     if (visible && backdropWindow.enableAnimation && backdropWindow.wallpaperIsVideo) {
                         play()
@@ -184,8 +192,15 @@ Variants {
                         pause()
                     }
                 }
-                
-                // Note: Blur is disabled for videos to maintain performance
+
+                layer.enabled: Appearance.effectsEnabled && backdropWindow.enableAnimatedBlur && backdropWindow.backdropBlurRadius > 0
+                layer.effect: MultiEffect {
+                    blurEnabled: true
+                    blur: (backdropWindow.backdropBlurRadius * Math.max(0, Math.min(1, backdropWindow.thumbnailBlurStrength / 100))) / 100.0
+                    blurMax: 64
+                    saturation: backdropWindow.backdropSaturation
+                    contrast: backdropWindow.backdropContrast
+                }
             }
 
             // Aurora-style blur (same as sidebars)
@@ -218,6 +233,11 @@ Variants {
                 mipmap: true
                 visible: backdropWindow.useAuroraStyle && backdropWindow.enableAnimation && backdropWindow.wallpaperIsGif
                 playing: visible
+
+                layer.enabled: Appearance.effectsEnabled && backdropWindow.enableAnimatedBlur
+                layer.effect: StyledBlurEffect {
+                    source: auroraGifWallpaper
+                }
             }
 
             // Aurora-style for Videos (without blur to maintain performance)
@@ -230,19 +250,24 @@ Variants {
                 loops: MediaPlayer.Infinite
                 muted: true
                 autoPlay: true
-                
+
                 onPlaybackStateChanged: {
                     if (playbackState === MediaPlayer.StoppedState && visible && backdropWindow.enableAnimation && backdropWindow.wallpaperIsVideo) {
                         play()
                     }
                 }
-                
+
                 onVisibleChanged: {
                     if (visible && backdropWindow.enableAnimation && backdropWindow.wallpaperIsVideo) {
                         play()
                     } else {
                         pause()
                     }
+                }
+
+                layer.enabled: Appearance.effectsEnabled && backdropWindow.enableAnimatedBlur
+                layer.effect: StyledBlurEffect {
+                    source: auroraVideoWallpaper
                 }
             }
 

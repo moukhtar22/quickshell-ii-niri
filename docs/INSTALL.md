@@ -107,18 +107,6 @@ If something's broken, the logs will probably tell you which package is missing.
 
 ---
 
-## Partial Install
-
-Don't want everything? The setup script has options:
-
-```bash
-./setup install-deps    # just packages, no config files
-./setup install-setups  # just services (ydotool, groups)
-./setup install-files   # just config files
-```
-
----
-
 ## What now?
 
 - [KEYBINDS.md](KEYBINDS.md) - Learn the shortcuts

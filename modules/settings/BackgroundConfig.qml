@@ -259,6 +259,19 @@ ContentPage {
                 }
 
                 SettingsSwitch {
+                    visible: Config.options.background.backdrop.enable && Config.options.background.backdrop.enableAnimation
+                    buttonIcon: "blur_circular"
+                    text: Translation.tr("Blur animated wallpapers (videos/GIFs)")
+                    checked: Config.options?.background?.backdrop?.enableAnimatedBlur ?? false
+                    onCheckedChanged: {
+                        Config.setNestedValue("background.backdrop.enableAnimatedBlur", checked);
+                    }
+                    StyledToolTip {
+                        text: Translation.tr("Apply blur effect to animated wallpapers in backdrop. Uses thumbnail blur strength setting. May significantly impact performance.")
+                    }
+                }
+
+                SettingsSwitch {
                     visible: Config.options.background.backdrop.enable
                     buttonIcon: "blur_on"
                     text: Translation.tr("Aurora glass effect")

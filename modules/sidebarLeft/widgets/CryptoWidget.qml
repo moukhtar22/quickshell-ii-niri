@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Layouts
+import Quickshell
 import Quickshell.Io
 import qs.modules.common
 import qs.modules.common.widgets
@@ -15,9 +16,50 @@ Item {
     property var sparklineData: ({})
     property bool loading: false
     property bool error: false
+    property bool _cacheLoaded: false
 
     readonly property var coins: Config.options?.sidebar?.widgets?.crypto_settings?.coins ?? []
     readonly property int refreshInterval: (Config.options?.sidebar?.widgets?.crypto_settings?.refreshInterval ?? 60) * 1000
+    readonly property string cachePath: FileUtils.trimFileProtocol(`${Directories.state}/user/crypto_cache.json`)
+
+    // --- File-based cache ---
+    FileView {
+        id: cacheFile
+        path: root.cachePath
+        watchChanges: false
+
+        onLoaded: {
+            try {
+                const cached = JSON.parse(cacheFile.text())
+                if (cached.cryptoData && Object.keys(cached.cryptoData).length > 0) {
+                    root.cryptoData = cached.cryptoData
+                }
+                if (cached.sparklineData && Object.keys(cached.sparklineData).length > 0) {
+                    root.sparklineData = cached.sparklineData
+                }
+            } catch (e) {
+                // Corrupted cache, ignore
+            }
+            root._cacheLoaded = true
+        }
+
+        onLoadFailed: (error) => {
+            // No cache yet, that's fine
+            root._cacheLoaded = true
+        }
+    }
+
+    function saveCache() {
+        try {
+            cacheFile.setText(JSON.stringify({
+                cryptoData: root.cryptoData,
+                sparklineData: root.sparklineData,
+                timestamp: Date.now()
+            }))
+        } catch (e) {
+            // Non-critical, ignore write failures
+        }
+    }
 
     Timer {
         id: fetchTimer
@@ -26,11 +68,40 @@ Item {
         repeat: true
         onTriggered: root.fetchPrices()
     }
-    
-    // Only fetch on first load if no data
+
+    // Fetch only after cache has been attempted, and only if data is stale or missing
     Component.onCompleted: {
-        if (root.coins.length > 0 && Object.keys(root.cryptoData).length === 0) {
-            Qt.callLater(() => root.fetchPrices())
+        // cacheFile.onLoaded / onLoadFailed will set _cacheLoaded
+    }
+
+    onCoinsChanged: {
+        if (root._cacheLoaded && root.coins.length > 0) {
+            // Check if we have data for all configured coins
+            const hasMissing = root.coins.some(c => !(c in root.cryptoData))
+            if (hasMissing) {
+                Qt.callLater(() => root.fetchPrices())
+            }
+        }
+    }
+
+    on_CacheLoadedChanged: {
+        if (root._cacheLoaded && root.coins.length > 0) {
+            // If cache had no data or is stale (>5 min), fetch fresh
+            const hasData = Object.keys(root.cryptoData).length > 0
+            if (!hasData) {
+                Qt.callLater(() => root.fetchPrices())
+            } else {
+                // Still schedule a background refresh for freshness
+                refreshDelayTimer.restart()
+            }
+        }
+    }
+
+    Timer {
+        id: refreshDelayTimer
+        interval: 2000
+        onTriggered: {
+            if (root.coins.length > 0) root.fetchPrices()
         }
     }
 
@@ -56,6 +127,7 @@ Item {
                 try {
                     root.cryptoData = JSON.parse(text)
                     root.error = false
+                    root.saveCache()
                     // Start sparkline fetch
                     root.fetchSparklines()
                 } catch (e) {
@@ -111,6 +183,7 @@ Item {
                         const newData = Object.assign({}, root.sparklineData)
                         newData[sparklineProcess.coinId] = sampled.slice(-20)
                         root.sparklineData = newData
+                        root.saveCache()
                     }
                 } catch (e) {}
             }
@@ -259,7 +332,7 @@ Item {
             }
 
             StyledText {
-                visible: root.error
+                visible: root.error && Object.keys(root.cryptoData).length === 0
                 text: Translation.tr("Failed to load")
                 font.pixelSize: Appearance.font.pixelSize.smallest
                 color: Appearance.inirEverywhere ? Appearance.inir.colError : Appearance.colors.colError

@@ -16,8 +16,8 @@ Scope {
     id: root
     property bool visible: false
     readonly property MprisPlayer activePlayer: MprisController.activePlayer
-    // Use MprisController.players - already filtered and updated imperatively
-    readonly property var allPlayers: MprisController.players
+    // Use displayPlayers - includes title/position dedup to prevent duplicates (e.g. plasma-browser-integration)
+    readonly property var allPlayers: MprisController.displayPlayers
     readonly property real osdWidth: Appearance.sizes.osdWidth
     readonly property real widgetWidth: Appearance.sizes.mediaControlsWidth
     readonly property real widgetHeight: Appearance.sizes.mediaControlsHeight
@@ -106,11 +106,11 @@ Scope {
                     width: root.widgetWidth
                 height: playerColumnLayout.implicitHeight
                 anchors.horizontalCenter: parent.horizontalCenter
-                
+
                 // Use screen height for reliable off-screen position
                 readonly property real screenH: mediaControlsRoot.screen?.height ?? 1080
                 readonly property real targetY: screenH - height - root.dockHeight - root.dockMargin - 5
-                
+
                 y: screenH + 50
                 opacity: 0
                 scale: 0.9
@@ -155,7 +155,7 @@ Scope {
                             id: playerDelegate
                             required property MprisPlayer modelData
                             required property int index
-                            
+
                             player: modelData
                             visualizerPoints: root.visualizerPoints
                             implicitWidth: root.widgetWidth
@@ -185,7 +185,7 @@ Scope {
                                  : Appearance.colors.colLayer0
                             radius: Appearance.inirEverywhere ? Appearance.inir.roundingLarge : root.popupRounding
                             border.width: Appearance.inirEverywhere || Appearance.auroraEverywhere ? 1 : 0
-                            border.color: Appearance.inirEverywhere ? Appearance.inir.colBorder 
+                            border.color: Appearance.inirEverywhere ? Appearance.inir.colBorder
                                         : Appearance.auroraEverywhere ? Appearance.aurora.colTooltipBorder
                                         : "transparent"
                             property real padding: 20

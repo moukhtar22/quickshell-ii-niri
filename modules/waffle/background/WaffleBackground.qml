@@ -28,23 +28,25 @@ Variants {
             if (wBg.useMainWallpaper ?? true) return Config.options?.background?.wallpaperPath ?? "";
             return wBg.wallpaperPath || Config.options?.background?.wallpaperPath || "";
         }
-        
+
         readonly property string wallpaperThumbnail: {
             if (wBg.useMainWallpaper ?? true) return Config.options?.background?.thumbnailPath ?? "";
             return wBg.thumbnailPath || Config.options?.background?.thumbnailPath || "";
         }
-        
+
         readonly property bool enableAnimation: wBg.enableAnimation ?? Config.options?.background?.enableAnimation ?? true
-        
+        readonly property bool enableAnimatedBlur: wEffects.enableAnimatedBlur ?? false
+        readonly property int thumbnailBlurStrength: wEffects.thumbnailBlurStrength ?? Config.options?.background?.effects?.thumbnailBlurStrength ?? 70
+
         readonly property bool wallpaperIsVideo: {
             const lowerPath = wallpaperSourceRaw.toLowerCase();
             return lowerPath.endsWith(".mp4") || lowerPath.endsWith(".webm") || lowerPath.endsWith(".mkv") || lowerPath.endsWith(".avi") || lowerPath.endsWith(".mov");
         }
-        
+
         readonly property bool wallpaperIsGif: {
             return wallpaperSourceRaw.toLowerCase().endsWith(".gif");
         }
-        
+
         // Effective source: use thumbnail if animation disabled for videos/GIFs
         readonly property string wallpaperSource: {
             if (!panelRoot.enableAnimation && (panelRoot.wallpaperIsVideo || panelRoot.wallpaperIsGif)) {
@@ -74,10 +76,10 @@ Variants {
             }
             return false
         }
-        
+
         // Hide wallpaper (show only backdrop for overview)
         readonly property bool backdropOnly: wBg.backdrop?.hideWallpaper ?? false
-        
+
         visible: !backdropOnly && (GlobalStates.screenLocked || !hasFullscreenWindow || !(wBg.hideWhenFullscreen ?? true))
 
         // Dynamic focus based on windows
@@ -106,7 +108,7 @@ Variants {
             const blurEnabled = wEffects.enableBlur ?? false;
             const blurRadius = wEffects.blurRadius ?? 0;
             if (!blurEnabled || blurRadius <= 0) return 0;
-            
+
             const blurStatic = Math.max(0, Math.min(100, Number(wEffects.blurStatic) || 0));
             const dynamicPart = (100 - blurStatic) * focusPresenceProgress;
             return (blurStatic + dynamicPart) / 100;
@@ -128,7 +130,7 @@ Variants {
                 cache: true
                 visible: ((!panelRoot.wallpaperIsGif && !panelRoot.wallpaperIsVideo) || !panelRoot.enableAnimation) && status === Image.Ready && !blurEffect.visible
             }
-            
+
             // Animated GIF support (only when animation enabled)
             AnimatedImage {
                 id: gifWallpaper
@@ -139,6 +141,13 @@ Variants {
                 cache: true
                 visible: panelRoot.wallpaperIsGif && panelRoot.enableAnimation && !blurEffect.visible
                 playing: visible
+
+                layer.enabled: Appearance.effectsEnabled && panelRoot.enableAnimatedBlur && (panelRoot.wEffects.blurRadius ?? 0) > 0
+                layer.effect: MultiEffect {
+                    blurEnabled: true
+                    blur: ((panelRoot.wEffects.blurRadius ?? 32) * Math.max(0, Math.min(1, panelRoot.thumbnailBlurStrength / 100))) / 100.0
+                    blurMax: 64
+                }
             }
 
             // Video wallpaper (Qt Multimedia - only when animation enabled)
@@ -157,19 +166,26 @@ Variants {
                 loops: MediaPlayer.Infinite
                 muted: true
                 autoPlay: true
-                
+
                 onPlaybackStateChanged: {
                     if (playbackState === MediaPlayer.StoppedState && visible && panelRoot.wallpaperIsVideo && panelRoot.enableAnimation) {
                         play()
                     }
                 }
-                
+
                 onVisibleChanged: {
                     if (visible && panelRoot.wallpaperIsVideo && panelRoot.enableAnimation) {
                         play()
                     } else {
                         pause()
                     }
+                }
+
+                layer.enabled: Appearance.effectsEnabled && panelRoot.enableAnimatedBlur && (panelRoot.wEffects.blurRadius ?? 0) > 0
+                layer.effect: MultiEffect {
+                    blurEnabled: true
+                    blur: ((panelRoot.wEffects.blurRadius ?? 32) * Math.max(0, Math.min(1, panelRoot.thumbnailBlurStrength / 100))) / 100.0
+                    blurMax: 64
                 }
             }
 
@@ -178,7 +194,7 @@ Variants {
                 id: blurEffect
                 anchors.fill: parent
                 source: wallpaper
-                visible: Appearance.effectsEnabled && panelRoot.blurProgress > 0 && 
+                visible: Appearance.effectsEnabled && panelRoot.blurProgress > 0 &&
                          !panelRoot.wallpaperIsGif && !panelRoot.wallpaperIsVideo &&
                          wallpaper.status === Image.Ready
                 blurEnabled: visible
@@ -196,7 +212,9 @@ Variants {
                     const total = Math.max(0, Math.min(100, baseN + extra));
                     return Qt.rgba(0, 0, 0, total / 100);
                 }
-                Behavior on color { ColorAnimation { duration: 220 } }
+                Behavior on color {
+                    animation: Looks.transition.color.createObject(this)
+                }
             }
         }
     }

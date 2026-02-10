@@ -68,7 +68,7 @@ Scope {
             id: panel
             required property var modelData
             screen: modelData
-            
+
             visible: root.showPicker || root.showOsd
             color: "transparent"
             exclusiveZone: 0
@@ -82,10 +82,13 @@ Scope {
             // Scrim
             Rectangle {
                 anchors.fill: parent
-                color: "#000000"
+                color: Appearance.colors.colScrim
                 opacity: root.showPicker ? 0.3 : 0
                 visible: opacity > 0
-                Behavior on opacity { NumberAnimation { duration: 150 } }
+                Behavior on opacity {
+                    enabled: Appearance.animationsEnabled
+                    animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+                }
                 MouseArea {
                     anchors.fill: parent
                     onClicked: root.showPicker = false
@@ -97,7 +100,7 @@ Scope {
                 anchors.horizontalCenter: parent.horizontalCenter
                 anchors.top: parent.top
                 anchors.topMargin: 16
-                
+
                 width: osdRow.width + 32
                 height: 72
                 radius: Appearance.rounding.large
@@ -238,7 +241,10 @@ Scope {
                                 border.color: isCurrent ? Appearance.colors.colPrimary
                                             : Appearance.colors.colLayer0Border
 
-                                Behavior on color { ColorAnimation { duration: 80 } }
+                                Behavior on color {
+                                    enabled: Appearance.animationsEnabled
+                                    animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+                                }
 
                                 ColumnLayout {
                                     anchors.fill: parent
@@ -253,7 +259,7 @@ Scope {
                                             anchors.fill: parent
                                             layout: modelData.id
                                             windowCount: Math.max(root.windowCount, 3)
-                                            accentColor: isCurrent 
+                                            accentColor: isCurrent
                                                 ? Appearance.colors.colOnPrimaryContainer
                                                 : Appearance.colors.colOnLayer1Inactive
                                         }

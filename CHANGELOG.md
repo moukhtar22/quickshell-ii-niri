@@ -5,6 +5,33 @@ All notable changes to iNiR will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.8.2] - 2026-02-09
+
+### Added
+- **Dock screen filtering**: `screenList` config option for per-monitor dock control, matching bar behavior (thanks @ainia for the reminder)
+
+### Fixed
+- **Dock animations**: Resolved flickering during app launch and drag operations (PR #40 by @Legnatbird)
+
+## [2.8.1] - 2026-02-08
+
+### Added
+- **Settings search**: Granular per-option search index with spotlight scroll-to navigation
+- **Terminal detection**: Auto-detect installed terminals in color config section on first expand
+- **Crypto cache**: Persist crypto widget prices and sparkline data across shell restarts
+- **Notification options**: `ignoreAppTimeout` and `scaleOnHover` config properties
+
+### Changed
+- **Bar center layout**: Both center groups now share effective width so workspaces stay perfectly centered regardless of active utility button count
+- **Screen cast toggle (PR #29)**: Simplified to always-interactive toggle with configurable output; removed monitor count detection overhead
+
+### Fixed
+- **Media player duplication**: Bottom overlay now uses `displayPlayers` with title/position dedup, matching bar popup behavior
+- **Notification popup animations**: Differentiated popup vs sidebar behavior — popups use instant height changes to avoid Wayland resize stair-stepping, with height buffer and clip to prevent content overflow
+- **Hardcoded animations**: Replaced raw `NumberAnimation`/`ColorAnimation` with `Appearance.animation` and `Looks.transition` design tokens across TimerIndicator, KeyboardKey, BarMediaPlayerItem, ThemePresetCard, TilingOverlay, and WidgetsContent
+- **Screen cast settings**: Added null safety, `setNestedValue` for output field, synced defaults with Config.qml schema
+- **Shell updates**: Prevented double repository search fallback when version.json exists but lacks `repo_path`
+
 ## [2.8.0] - 2026-02-04
 
 ### Added

@@ -18,11 +18,11 @@ DockButton {
     property real countDotHeight: 4
     property bool appIsActive: appToplevel.toplevels.find(t => (t.activated == true)) !== undefined
     property bool hasWindows: appToplevel.toplevels.length > 0
-    
+
     // Hover preview signals
     signal hoverPreviewRequested()
     signal hoverPreviewDismissed()
-    
+
     // Timer for hover delay before showing preview
     property alias hoverTimer: hoverDelayTimer
     Timer {
@@ -34,22 +34,22 @@ DockButton {
             }
         }
     }
-    
+
     // Determine focused window index for smart indicator (Niri only)
     // Returns the index (0-based) of the focused window sorted by column position
     property int focusedWindowIndex: {
         if (!root.appIsActive || appToplevel.toplevels.length <= 1)
             return 0;
-        
+
         // Find the focused toplevel
         const focusedToplevel = appToplevel.toplevels.find(t => t.activated === true);
         if (!focusedToplevel)
             return 0;
-        
+
         // For Niri: use column position to determine order
         if (CompositorService.isNiri && focusedToplevel.niriWindowId) {
             const niriWindows = NiriService.windows;
-            
+
             // Build array of {toplevelIdx, column} for sorting
             const windowPositions = [];
             for (let i = 0; i < appToplevel.toplevels.length; i++) {
@@ -63,35 +63,38 @@ DockButton {
                 }
                 windowPositions.push({ idx: i, col: col, activated: tl.activated });
             }
-            
+
             // Sort by column
             windowPositions.sort((a, b) => a.col - b.col);
-            
+
             // Find the focused one's position in sorted array
             for (let i = 0; i < windowPositions.length; i++) {
                 if (windowPositions[i].activated) return i;
             }
         }
-        
+
         // Fallback: find by activated flag in original order
         for (let i = 0; i < appToplevel.toplevels.length; i++) {
             if (appToplevel.toplevels[i].activated) return i;
         }
         return 0;
     }
-    
+
     // Subtle highlight for active app
     scale: appIsActive ? 1.05 : 1.0
-    Behavior on scale { NumberAnimation { duration: 150; easing.type: Easing.OutQuad } }
+    Behavior on scale {
+        enabled: Appearance.animationsEnabled
+        animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+    }
 
     property bool isSeparator: appToplevel.appId === "SEPARATOR"
     // Use originalAppId (preserves case) for desktop entry lookup, fallback to appId for backwards compat
     property var desktopEntry: DesktopEntries.heuristicLookup(appToplevel.originalAppId ?? appToplevel.appId)
     enabled: !isSeparator
-    
+
     readonly property real dockHeight: Config.options?.dock?.height ?? 70
     readonly property real separatorSize: dockHeight - 50
-    
+
     implicitWidth: isSeparator ? (vertical ? separatorSize : 8) : (vertical ? 50 : (implicitHeight - topInset - bottomInset))
     implicitHeight: isSeparator ? (vertical ? 8 : separatorSize) : 50
     background.visible: !isSeparator
@@ -100,7 +103,10 @@ DockButton {
     StyledRectangularShadow {
         target: root.background
         opacity: root.buttonHovered && !root.isSeparator ? 0.6 : 0
-        Behavior on opacity { NumberAnimation { duration: 150 } }
+        Behavior on opacity {
+            enabled: Appearance.animationsEnabled
+            animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
+        }
     }
 
     Loader {
@@ -158,6 +164,11 @@ DockButton {
     }
 
     onClicked: {
+        // Suppress the click that RippleButton fires after a drag-release
+        if (appListRoot?._suppressNextClick) {
+            appListRoot._suppressNextClick = false
+            return
+        }
         // Sin ventanas abiertas: lanzar nueva instancia desde desktop entry o fallbacks
         if (appToplevel.toplevels.length === 0) {
             launchFromDesktopEntry();
@@ -205,11 +216,11 @@ DockButton {
         id: contextMenu
         anchorItem: root
         anchorHovered: root.buttonHovered
-        
+
         onActiveChanged: {
             if (!active && root.appListRoot) root.appListRoot.contextMenuOpen = false
         }
-        
+
         model: [
             // Desktop actions (if available)
             ...((root.desktopEntry?.actions?.length > 0) ? root.desktopEntry.actions.map(action => ({
@@ -285,7 +296,7 @@ DockButton {
                     property bool isAbsolutePath: iconName.startsWith("/") || iconName.startsWith("file://")
                     property var candidates: isAbsolutePath ? [] : IconThemeService.dockIconCandidates(iconName)
                     property int candidateIndex: 0
-                    
+
                     source: {
                         if (isAbsolutePath) {
                             return iconName.startsWith("file://") ? iconName : `file://${iconName}`
@@ -293,7 +304,7 @@ DockButton {
                         return candidates.length > 0 ? candidates[0] : Quickshell.iconPath(iconName, "image-missing")
                     }
                     implicitSize: root.iconSize
-                    
+
                     onStatusChanged: {
                         if (status === Image.Error) {
                             // Fix for absolute paths failing (e.g. Electron apps pointing to non-existent files)
@@ -350,15 +361,15 @@ DockButton {
                     topMargin: 2
                     horizontalCenter: parent.horizontalCenter
                 }
-                
+
                 // Config options
                 property bool smartIndicator: Config.options?.dock?.smartIndicator !== false
                 property bool showAllDots: Config.options?.dock?.showAllWindowDots !== false
                 property int maxDots: Config.options?.dock?.maxIndicatorDots ?? 5
-                
+
                 sourceComponent: Row {
                     spacing: 3
-                    
+
                     Repeater {
                         // Show dots for all windows if enabled, otherwise just for active apps
                         model: {
@@ -369,12 +380,12 @@ DockButton {
                             }
                             return 0;
                         }
-                        
+
                         delegate: Rectangle {
                             required property int index
-                            
+
                             property bool smartMode: Config.options?.dock?.smartIndicator !== false
-                            
+
                             // Determine if this indicator corresponds to the focused window
                             property bool isFocusedWindow: {
                                 if (!root.appIsActive) return false;
@@ -382,20 +393,20 @@ DockButton {
                                 if (appToplevel.toplevels.length <= 1) return true;
                                 return index === root.focusedWindowIndex;
                             }
-                            
+
                             radius: Appearance.rounding.full
                             implicitWidth: isFocusedWindow ? root.countDotWidth : root.countDotHeight
                             implicitHeight: root.countDotHeight
-                            color: isFocusedWindow 
+                            color: isFocusedWindow
                                    ? (Appearance.inirEverywhere ? Appearance.inir.colPrimary : Appearance.colors.colPrimary)
                                    : ColorUtils.transparentize(Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.colors.colOnLayer0, 0.5)
-                            
-                            Behavior on implicitWidth { 
-                                NumberAnimation { duration: 120; easing.type: Easing.OutQuad } 
+
+                            Behavior on implicitWidth {
+                                NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
                             }
                         }
                     }
-                    
+
                     // Fallback: single dot when showAllDots is off and app is inactive
                     Rectangle {
                         visible: !root.appIsActive && root.hasWindows && Config.options?.dock?.showAllWindowDots === false

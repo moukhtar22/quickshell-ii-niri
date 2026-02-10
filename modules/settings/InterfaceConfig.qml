@@ -450,6 +450,16 @@ ContentPage {
                 }
             }
 
+            SettingsSwitch {
+                buttonIcon: "drag_indicator"
+                text: Translation.tr("Drag to reorder")
+                checked: Config.options?.dock?.enableDragReorder ?? true
+                onCheckedChanged: Config.setNestedValue('dock.enableDragReorder', checked)
+                StyledToolTip {
+                    text: Translation.tr("Long-press and drag dock icons to reorder pinned apps")
+                }
+            }
+
             ContentSubsection {
                 title: Translation.tr("Appearance")
 
@@ -791,6 +801,18 @@ ContentPage {
                 }
             }
 
+            ConfigSwitch {
+                buttonIcon: "sync"
+                text: Translation.tr("Auto-sync badge with popup list")
+                checked: !(Config.options?.notifications?.useLegacyCounter ?? true)
+                onCheckedChanged: {
+                    Config.setNestedValue("notifications.useLegacyCounter", !checked)
+                }
+                StyledToolTip {
+                    text: Translation.tr("Automatically sync notification badge with actual popup count.\nFixes issue where externally cleared notifications (e.g., Discord) don't update the badge.\nDisable to use the classic manual counter behavior.")
+                }
+            }
+
             ContentSubsection {
                 title: Translation.tr("Anchor")
 
@@ -855,10 +877,10 @@ ContentPage {
                     }
                 }
             }
-            
+
             ContentSubsection {
                 title: Translation.tr("Google Lens")
-                
+
                 ConfigSelectionArray {
                     currentValue: Config.options.search.imageSearch.useCircleSelection ? "circle" : "rectangles"
                     onSelected: newValue => {
@@ -873,7 +895,7 @@ ContentPage {
 
             ContentSubsection {
                 title: Translation.tr("Element appearance")
-                
+
                 ConfigSpinBox {
                     icon: "border_style"
                     text: Translation.tr("Border size (px)")
@@ -922,7 +944,7 @@ ContentPage {
 
             ContentSubsection {
                 title: Translation.tr("Circle selection")
-                
+
                 ConfigSpinBox {
                     icon: "eraser_size_3"
                     text: Translation.tr("Stroke width")
@@ -1123,7 +1145,7 @@ ContentPage {
                     console.log(`[RightSidebar] setWidget(${widgetId}, ${active})`)
                     let current = [...(Config.options?.sidebar?.right?.enabledWidgets ?? defaults)]
                     console.log(`[RightSidebar] Current widgets:`, JSON.stringify(current))
-                    
+
                     if (active && !current.includes(widgetId)) {
                         current.push(widgetId)
                         console.log(`[RightSidebar] Adding ${widgetId}, new array:`, JSON.stringify(current))
@@ -1152,7 +1174,7 @@ ContentPage {
                         rightSidebarWidgets.setWidget("calendar", checked)
                     }
                 }
-                
+
                 SettingsSwitch {
                     buttonIcon: "done_outline"
                     text: Translation.tr("To Do")
@@ -1167,7 +1189,7 @@ ContentPage {
                         rightSidebarWidgets.setWidget("todo", checked)
                     }
                 }
-                
+
                 SettingsSwitch {
                     buttonIcon: "edit_note"
                     text: Translation.tr("Notepad")
@@ -1252,11 +1274,11 @@ ContentPage {
                     spacing: 4
 
                     property var subreddits: []
-                    
+
                     Component.onCompleted: {
                         subreddits = Config.options?.sidebar?.reddit?.subreddits ?? ["unixporn", "linux", "archlinux", "kde", "gnome"]
                     }
-                    
+
                     Connections {
                         target: Config
                         function onConfigChanged() {
@@ -1467,7 +1489,7 @@ ContentPage {
 
             ContentSubsection {
                 title: Translation.tr("Quick toggles")
-                
+
                 ConfigSelectionArray {
                     Layout.fillWidth: false
                     currentValue: Config.options.sidebar.quickToggles.style
@@ -1511,7 +1533,7 @@ ContentPage {
                         text: Translation.tr("Show volume/brightness/mic sliders in the sidebar")
                     }
                 }
-                
+
                 SettingsSwitch {
                     buttonIcon: "brightness_6"
                     text: Translation.tr("Brightness")
@@ -1609,7 +1631,7 @@ ContentPage {
                         }
                     }
                 }
-                
+
                 ConfigRow {
                     uniform: true
                     SettingsSwitch {

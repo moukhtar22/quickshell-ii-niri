@@ -9,7 +9,12 @@ import Quickshell.Services.Notifications
 
 /**
  * A group of notifications from the same app.
- * Similar to Android's notifications
+ * Similar to Android's notifications.
+ *
+ * Popup vs Sidebar behavior:
+ * - Sidebar: Smooth height animations for expand/collapse (panel doesn't resize)
+ * - Popup: Instant height changes to avoid Wayland window resize stair-stepping,
+ *   with fast opacity/displacement transitions for polish
  */
 MouseArea { // Notification group area
     id: root
@@ -20,6 +25,7 @@ MouseArea { // Notification group area
     property bool expanded: false
     property bool popup: false
     property real padding: 10
+    property bool _expandAnimating: false
     implicitHeight: background.implicitHeight
 
     property real dragConfirmThreshold: 40 // Drag to discard notification
@@ -28,14 +34,19 @@ MouseArea { // Notification group area
     property var parentDragIndex: qmlParent?.dragIndex
     property var parentDragDistance: qmlParent?.dragDistance
     property var dragIndexDiff: Math.abs(parentDragIndex - index)
-    property real xOffset: dragIndexDiff == 0 ? parentDragDistance : 
-        Math.abs(parentDragDistance) > dragConfirmThreshold ? 0 :
-        dragIndexDiff == 1 ? (parentDragDistance * 0.3) :
-        dragIndexDiff == 2 ? (parentDragDistance * 0.1) : 0
+    property real xOffset: dragIndexDiff == 0 ? parentDragDistance : 0
+
+    // Animation tokens — popup uses fast (200ms), sidebar uses standard (500ms)
+    readonly property QtObject _dismissAnim: root.popup
+        ? Appearance.animation.elementMoveFast
+        : Appearance.animation.elementMove
+    readonly property QtObject _contentAnim: Appearance.animation.elementMoveFast
 
     function destroyWithAnimation(left = false) {
+        background.anchors.leftMargin = root.xOffset; // Break binding, capture current position
+        background.implicitHeight = background.implicitHeight; // Freeze height during dismiss
+        root.implicitHeight = root.implicitHeight; // Freeze delegate height in ListView
         root.qmlParent.resetDrag()
-        background.anchors.leftMargin = background.anchors.leftMargin; // Break binding
         destroyAnimation.left = left;
         destroyAnimation.running = true;
     }
@@ -58,9 +69,9 @@ MouseArea { // Notification group area
             target: background.anchors
             property: "leftMargin"
             to: (root.width + root.dismissOvershoot) * (destroyAnimation.left ? -1 : 1)
-            duration: Appearance.animation.elementMove.duration
-            easing.type: Appearance.animation.elementMove.type
-            easing.bezierCurve: Appearance.animation.elementMove.bezierCurve
+            duration: root._dismissAnim.duration
+            easing.type: root._dismissAnim.type
+            easing.bezierCurve: root._dismissAnim.bezierCurve
         }
         onFinished: () => {
             root.notifications.forEach((notif) => {
@@ -72,7 +83,19 @@ MouseArea { // Notification group area
     }
 
     function toggleExpanded() {
+        // Sidebar: animate height smoothly (panel doesn't resize, so no stair-stepping)
+        // Popup: skip height animation (each frame would force async Wayland window resize)
+        if (!root.popup) {
+            root._expandAnimating = true;
+            _expandAnimateEndTimer.restart();
+        }
         root.expanded = !root.expanded;
+    }
+
+    Timer {
+        id: _expandAnimateEndTimer
+        interval: Appearance.animation.elementMoveFast.duration + 50
+        onTriggered: root._expandAnimating = false
     }
 
     DragManager { // Drag manager
@@ -83,7 +106,7 @@ MouseArea { // Notification group area
         acceptedButtons: Qt.LeftButton | Qt.RightButton | Qt.MiddleButton
 
         onPressed: (mouse) => {
-            if (mouse.button === Qt.RightButton) 
+            if (mouse.button === Qt.RightButton)
                 root.toggleExpanded();
         }
 
@@ -108,7 +131,7 @@ MouseArea { // Notification group area
         onDragReleased: (diffX, diffY) => {
             if (Math.abs(diffX) > root.dragConfirmThreshold)
                 root.destroyWithAnimation(diffX < 0);
-            else 
+            else
                 dragManager.resetDrag();
         }
     }
@@ -117,42 +140,49 @@ MouseArea { // Notification group area
         target: background
         visible: popup && !Appearance.auroraEverywhere && !Appearance.inirEverywhere
     }
-    
+
     Rectangle { // Background of the notification
         id: background
         anchors.left: parent.left
         width: parent.width
-        
+
         // For popup: solid color (no blur behind)
         // For sidebar: transparent to show parent's blur
         color: Appearance.inirEverywhere ? (popup ? Appearance.inir.colLayer2 : Appearance.inir.colLayer1)
             : Appearance.auroraEverywhere ? (popup ? Appearance.colors.colLayer2Base : "transparent")
-            : (popup ? ColorUtils.applyAlpha(Appearance.colors.colLayer2, 1 - Appearance.backgroundTransparency) 
+            : (popup ? ColorUtils.applyAlpha(Appearance.colors.colLayer2, 1 - Appearance.backgroundTransparency)
                      : Appearance.colors.colLayer2)
-        
+
         radius: Appearance.inirEverywhere ? Appearance.inir.roundingNormal : Appearance.rounding.normal
         border.width: (Appearance.inirEverywhere || (Appearance.auroraEverywhere && popup)) ? 1 : 0
-        border.color: Appearance.inirEverywhere ? Appearance.inir.colBorder 
+        border.color: Appearance.inirEverywhere ? Appearance.inir.colBorder
             : Appearance.auroraEverywhere ? Appearance.aurora.colTooltipBorder : "transparent"
         anchors.leftMargin: root.xOffset
 
         Behavior on anchors.leftMargin {
             enabled: !dragManager.dragging
             NumberAnimation {
-                duration: Appearance.animation.elementMove.duration
-                easing.type: Appearance.animation.elementMove.type
+                duration: root._contentAnim.duration
+                easing.type: root._contentAnim.type
                 easing.bezierCurve: Appearance.animationCurves.expressiveFastSpatial
             }
         }
-        
+
         clip: true
-        implicitHeight: root.expanded ? 
+        implicitHeight: root.expanded ?
             row.implicitHeight + padding * 2 :
             Math.min(80, row.implicitHeight + padding * 2)
 
         Behavior on implicitHeight {
             id: implicitHeightAnim
-            NumberAnimation { duration: 10; easing.type: Easing.OutCubic }
+            // Only animate during user-initiated expand/collapse in sidebar mode.
+            // Popup skips this to avoid Wayland window resize stair-stepping.
+            enabled: root._expandAnimating && !root.popup && Appearance.animationsEnabled
+            NumberAnimation {
+                duration: root._contentAnim.duration
+                easing.type: root._contentAnim.type
+                easing.bezierCurve: root._contentAnim.bezierCurve
+            }
         }
 
         RowLayout { // Left column for icon, right column for content
@@ -175,17 +205,18 @@ MouseArea { // Notification group area
 
             ColumnLayout { // Content
                 Layout.fillWidth: true
-                spacing: expanded ? (root.multipleNotifications ? 
-                    (notificationGroup?.notifications[root.notificationCount - 1].image != "") ? 35 : 
+                spacing: expanded ? (root.multipleNotifications ?
+                    (notificationGroup?.notifications[root.notificationCount - 1].image != "") ? 35 :
                     5 : 0) : 0
-                // spacing: 00
+
                 Behavior on spacing {
+                    // Sidebar: smooth spacing transition; Popup: instant
+                    enabled: !root.popup && Appearance.animationsEnabled
                     animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
                 }
 
                 Item { // App name (or summary when there's only 1 notif) and time
                     id: topRow
-                    // spacing: 0
                     Layout.fillWidth: true
                     property real fontSize: Appearance.font.pixelSize.smaller
                     property bool showAppName: root.multipleNotifications
@@ -213,7 +244,6 @@ MouseArea { // Notification group area
                         }
                         StyledText {
                             id: timeText
-                            // Layout.fillWidth: true
                             Layout.rightMargin: 10
                             horizontalAlignment: Text.AlignLeft
                             text: NotificationUtils.getFriendlyNotifTimeString(notificationGroup?.time)
@@ -238,13 +268,38 @@ MouseArea { // Notification group area
                     implicitHeight: contentHeight
                     Layout.fillWidth: true
                     spacing: expanded ? 5 : 3
-                    // clip: true
                     interactive: false
+
+                    // Disable built-in transitions — we provide custom ones below
+                    // to use faster timing for popup and standard for sidebar
+                    animateAppearance: false
+                    popin: false
+
                     Behavior on spacing {
+                        enabled: !root.popup && Appearance.animationsEnabled
                         animation: Appearance.animation.elementMoveFast.numberAnimation.createObject(this)
                     }
+
+                    // Custom removeDisplaced: smooth gap-filling when a notification is dismissed.
+                    // Uses fast timing so remaining items slide up promptly after dismiss animation.
+                    removeDisplaced: Transition {
+                        NumberAnimation {
+                            property: "y"
+                            duration: root._contentAnim.duration
+                            easing.type: root._contentAnim.type
+                            easing.bezierCurve: root._contentAnim.bezierCurve
+                        }
+                        NumberAnimation {
+                            property: "opacity"
+                            to: 1
+                            duration: root._contentAnim.duration
+                            easing.type: root._contentAnim.type
+                            easing.bezierCurve: root._contentAnim.bezierCurve
+                        }
+                    }
+
                     model: ScriptModel {
-                        values: root.expanded ? root.notifications.slice().reverse() : 
+                        values: root.expanded ? root.notifications.slice().reverse() :
                             root.notifications.slice().reverse().slice(0, 2)
                     }
                     delegate: NotificationItem {
@@ -252,6 +307,7 @@ MouseArea { // Notification group area
                         required property var modelData
                         notificationObject: modelData
                         expanded: root.expanded
+                        popup: root.popup
                         onlyNotification: (root.notificationCount === 1)
                         opacity: (!root.expanded && index == 1 && root.notificationCount > 2) ? 0.5 : 1
                         visible: root.expanded || (index < 2)

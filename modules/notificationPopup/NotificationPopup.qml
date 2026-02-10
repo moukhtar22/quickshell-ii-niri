@@ -10,7 +10,7 @@ import Quickshell.Hyprland
 
 Scope {
     id: notificationPopup
-    
+
     // Position from config: topRight, topLeft, bottomRight, bottomLeft
     readonly property string position: Config.options?.notifications?.position ?? "topRight"
     readonly property bool isTop: position.startsWith("top")
@@ -22,7 +22,7 @@ Scope {
         id: root
         // Hide during GameMode to avoid input interference
         visible: (Notifications.popupList.length > 0) && !GlobalStates.screenLocked && !GameMode.active
-        screen: CompositorService.isNiri 
+        screen: CompositorService.isNiri
             ? Quickshell.screens.find(s => s.name === NiriService.currentOutput) ?? Quickshell.screens[0]
             : Quickshell.screens.find(s => s.name === Hyprland.focusedMonitor?.name) ?? null
 
@@ -30,7 +30,7 @@ Scope {
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.keyboardFocus: WlrKeyboardFocus.None
         exclusiveZone: 0
-        
+
         // Only capture input on actual notification area
         mask: Region {
             item: listview
@@ -45,9 +45,13 @@ Scope {
 
         color: "transparent"
         implicitWidth: Appearance.sizes.notificationPopupWidth
-        implicitHeight: Math.min(listview.contentHeight + edgeMargin * 2, screen?.height * 0.8 ?? 600)
-        
+        // Add height buffer to account for Wayland compositor resize delay
+        // This prevents content clipping while the window catches up to new content size
+        implicitHeight: Math.min(listview.contentHeight + edgeMargin * 2 + heightBuffer, screen?.height * 0.8 ?? 600)
+
         readonly property int edgeMargin: Config.options?.notifications?.edgeMargin ?? 4
+        // Extra buffer so content isn't clipped during async Wayland resize
+        readonly property int heightBuffer: 16
 
         NotificationListView {
             id: listview
@@ -55,6 +59,8 @@ Scope {
                 fill: parent
                 margins: root.edgeMargin
             }
+            // Clip content to prevent overflow while PanelWindow resizes asynchronously
+            clip: true
             popup: true
         }
     }

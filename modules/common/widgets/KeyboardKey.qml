@@ -14,7 +14,7 @@ Rectangle {
     property real borderWidth: 1
     property real extraBottomBorderWidth: 2
     property real borderRadius: Appearance.inirEverywhere ? Appearance.inir.roundingSmall : Appearance.rounding.verysmall
-    
+
     // Special key icon mapping
     readonly property var specialKeyIcons: ({
         "Up": "arrow_upward", "Down": "arrow_downward",
@@ -26,18 +26,21 @@ Rectangle {
         "Page_Up": "expand_less", "Page_Down": "expand_more",
         "Space": "space_bar", "Print": "screenshot_monitor"
     })
-    
+
     readonly property bool isSpecialKey: key in specialKeyIcons
     readonly property string specialKeyIcon: specialKeyIcons[key] ?? ""
-    
+
     implicitWidth: keyFace.implicitWidth + borderWidth * 2
     implicitHeight: keyFace.implicitHeight + borderWidth * 2 + extraBottomBorderWidth
     radius: borderRadius
-    
+
     // M3 layer colors - subtle border using surfaceContainerHigh
     color: Appearance.inirEverywhere ? Appearance.inir.colBorderMuted : Appearance.colors.colSurfaceContainerHigh
 
-    Behavior on color { ColorAnimation { duration: 150 } }
+    Behavior on color {
+        enabled: Appearance.animationsEnabled
+        animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+    }
 
     Rectangle {
         id: keyFace
@@ -50,19 +53,22 @@ Rectangle {
         }
         implicitWidth: keyContent.implicitWidth + horizontalPadding * 2
         implicitHeight: keyContent.implicitHeight + verticalPadding * 2
-        
+
         // M3 layer colors - key face using surfaceContainer
         color: Appearance.inirEverywhere ? Appearance.inir.colLayer2 : Appearance.colors.colSurfaceContainer
         radius: borderRadius - borderWidth
 
-        Behavior on color { ColorAnimation { duration: 150 } }
+        Behavior on color {
+            enabled: Appearance.animationsEnabled
+            animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
+        }
 
         Item {
             id: keyContent
             anchors.centerIn: parent
             implicitWidth: root.isSpecialKey ? keyIcon.implicitWidth : keyText.implicitWidth
             implicitHeight: root.isSpecialKey ? keyIcon.implicitHeight : keyText.implicitHeight
-            
+
             MaterialSymbol {
                 id: keyIcon
                 visible: root.isSpecialKey
@@ -71,7 +77,7 @@ Rectangle {
                 font.pixelSize: Appearance.font.pixelSize.smaller
                 color: Appearance.inirEverywhere ? Appearance.inir.colText : Appearance.m3colors.m3onSurface
             }
-            
+
             StyledText {
                 id: keyText
                 visible: !root.isSpecialKey
