@@ -29,6 +29,12 @@ Scope {
     property string overlaySearchText: ""
     property var overlaySearchResults: []
     
+    Timer {
+        id: searchDebounceTimer
+        interval: 200  // 200ms debounce for settings search
+        onTriggered: root.recomputeOverlaySearchResults()
+    }
+    
     // Simple search index based on pages
     property var overlaySearchIndex: [
         { pageIndex: 0, pageName: Translation.tr("Quick"), keywords: ["quick", "wallpaper", "colors", "bar", "position"] },
@@ -311,7 +317,7 @@ Scope {
                                     text: root.overlaySearchText
                                     onTextChanged: {
                                         root.overlaySearchText = text;
-                                        root.recomputeOverlaySearchResults();
+                                        searchDebounceTimer.restart();
                                     }
 
                                     Keys.onPressed: (event) => {
@@ -386,6 +392,10 @@ Scope {
                                 contentHeight: navCol.implicitHeight
                                 clip: true
                                 boundsBehavior: Flickable.StopAtBounds
+                                
+                                ScrollBar.vertical: StyledScrollBar {
+                                    policy: ScrollBar.AsNeeded
+                                }
 
                                 ColumnLayout {
                                     id: navCol
@@ -466,6 +476,21 @@ Scope {
                             border.color: Appearance.inirEverywhere ? Appearance.inir.colBorderSubtle : "transparent"
                             clip: true
 
+                            // Loading indicator
+                            CircularProgress {
+                                anchors.centerIn: parent
+                                visible: {
+                                    // Show when current page is loading
+                                    for (var i = 0; i < overlayPagesRepeater.count; i++) {
+                                        var loader = overlayPagesRepeater.itemAt(i);
+                                        if (loader && loader.index === overlayCurrentPage && loader.status !== Loader.Ready) {
+                                            return true;
+                                        }
+                                    }
+                                    return false;
+                                }
+                            }
+
                             // Page stack
                             Item {
                                 id: overlayPagesStack
@@ -528,6 +553,7 @@ Scope {
                                 }
 
                                 Repeater {
+                                    id: overlayPagesRepeater
                                     model: overlayPages.length
                                     delegate: Loader {
                                         id: overlayPageLoader
