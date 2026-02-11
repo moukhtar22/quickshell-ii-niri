@@ -26,6 +26,7 @@ inir-docs/
 .gemini/
 GEMINI.md
 opencode.json
+.roo/
 
 # WIP documentation (not for distribution)
 docs/*_IMPLEMENTATION.md

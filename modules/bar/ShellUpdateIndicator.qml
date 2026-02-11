@@ -9,7 +9,7 @@ import qs.modules.common.functions
 /**
  * Compact iNiR shell update indicator for the bar.
  * Shows when a new version is available in the git repo.
- * Follows TimerIndicator pattern for global style support.
+ * Redesigned with better visual hierarchy and animated feedback.
  */
 MouseArea {
     id: root
@@ -40,14 +40,14 @@ MouseArea {
         }
     }
 
-    // Background pill (follows TimerIndicator pattern)
+    // Background pill
     Rectangle {
         id: pill
         anchors.centerIn: parent
-        width: contentRow.implicitWidth + 12
+        width: contentRow.implicitWidth + 16
         height: contentRow.implicitHeight + 8
         radius: height / 2
-        scale: root.pressed ? 0.95 : 1.0
+        scale: root.pressed ? 0.93 : (root.containsMouse ? 1.03 : 1.0)
         color: {
             if (root.pressed) {
                 if (Appearance.inirEverywhere) return Appearance.inir.colLayer2Active
@@ -61,27 +61,39 @@ MouseArea {
             }
             if (Appearance.inirEverywhere) return ColorUtils.transparentize(Appearance.inir?.colAccent ?? Appearance.m3colors.m3primary, 0.85)
             if (Appearance.auroraEverywhere) return ColorUtils.transparentize(Appearance.aurora?.colAccent ?? Appearance.m3colors.m3primary, 0.85)
-            return Appearance.colors.colPrimaryContainer
+            return ColorUtils.transparentize(Appearance.m3colors.m3primary, 0.88)
         }
+
+        border.width: Appearance.inirEverywhere ? 1 : 0
+        border.color: Appearance.inirEverywhere ? Appearance.inir.colBorder : "transparent"
 
         Behavior on color {
             animation: Appearance.animation.elementMoveFast.colorAnimation.createObject(this)
         }
         Behavior on scale {
-            NumberAnimation { duration: 100; easing.type: Easing.OutCubic }
+            NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
         }
     }
 
     RowLayout {
         id: contentRow
         anchors.centerIn: pill
-        spacing: 4
+        spacing: 5
 
         MaterialSymbol {
-            text: "system_update_alt"
+            id: updateIcon
+            text: "upgrade"
             iconSize: Appearance.font.pixelSize.normal
             color: root.accentColor
             Layout.alignment: Qt.AlignVCenter
+
+            // Gentle pulse when hovered
+            SequentialAnimation on opacity {
+                loops: Animation.Infinite
+                running: root.containsMouse
+                NumberAnimation { to: 0.5; duration: 800; easing.type: Easing.InOutSine }
+                NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutSine }
+            }
         }
 
         StyledText {
@@ -90,127 +102,191 @@ MouseArea {
                 : "!"
             font.pixelSize: Appearance.font.pixelSize.smaller
             font.weight: Font.DemiBold
-            color: root.textColor
+            color: root.accentColor
             Layout.alignment: Qt.AlignVCenter
         }
     }
 
-    // Hover popup (follows BatteryPopup / ResourcesPopup pattern)
+    // Hover popup
     StyledPopup {
         id: updatePopup
         hoverTarget: root
 
-        component InfoRow: RowLayout {
-            id: infoRow
-            required property string icon
-            required property string label
-            required property string value
-            property color valueColor: Appearance.colors.colOnSurfaceVariant
-            spacing: 4
-
-            MaterialSymbol {
-                text: infoRow.icon
-                color: Appearance.colors.colOnSurfaceVariant
-                iconSize: Appearance.font.pixelSize.large
-            }
-            StyledText {
-                text: infoRow.label
-                color: Appearance.colors.colOnSurfaceVariant
-            }
-            StyledText {
-                Layout.fillWidth: true
-                horizontalAlignment: Text.AlignRight
-                color: infoRow.valueColor
-                text: infoRow.value
-            }
-        }
-
         ColumnLayout {
-            spacing: 4
+            spacing: 8
 
-            // Header
-            Row {
-                spacing: 5
-
-                MaterialSymbol {
-                    anchors.verticalCenter: parent.verticalCenter
-                    fill: 0
-                    font.weight: Font.Medium
-                    text: "system_update_alt"
-                    iconSize: Appearance.font.pixelSize.large
-                    color: Appearance.colors.colOnSurfaceVariant
-                }
-
-                StyledText {
-                    anchors.verticalCenter: parent.verticalCenter
-                    text: Translation.tr("iNiR Update")
-                    font {
-                        weight: Font.Medium
-                        pixelSize: Appearance.font.pixelSize.normal
-                    }
-                    color: Appearance.colors.colOnSurfaceVariant
-                }
-            }
-
-            // Version info rows
-            InfoRow {
-                icon: "tag"
-                label: Translation.tr("Current:")
-                value: ShellUpdates.localCommit || "\u2014"
-            }
-            InfoRow {
-                icon: "upgrade"
-                label: Translation.tr("Available:")
-                value: ShellUpdates.remoteCommit || "\u2014"
-                valueColor: Appearance.m3colors.m3primary
-            }
-            InfoRow {
-                icon: "account_tree"
-                label: Translation.tr("Branch:")
-                value: ShellUpdates.currentBranch || "main"
-            }
-            InfoRow {
-                icon: "commit"
-                label: Translation.tr("Behind:")
-                value: ShellUpdates.commitsBehind.toString()
-                valueColor: ShellUpdates.commitsBehind > 10
-                    ? Appearance.m3colors.m3error
-                    : Appearance.m3colors.m3primary
-            }
-
-            // Latest commit message
+            // Header row with icon and title
             RowLayout {
-                spacing: 4
-                visible: ShellUpdates.latestMessage.length > 0
-                Layout.maximumWidth: 260
+                spacing: 8
+                Layout.fillWidth: true
 
-                MaterialSymbol {
-                    text: "notes"
-                    color: Appearance.colors.colOnSurfaceVariant
-                    iconSize: Appearance.font.pixelSize.large
+                Rectangle {
+                    width: 36
+                    height: 36
+                    radius: Appearance.rounding.small
+                    color: ColorUtils.transparentize(Appearance.m3colors.m3primary, 0.85)
+
+                    MaterialSymbol {
+                        anchors.centerIn: parent
+                        text: "upgrade"
+                        iconSize: Appearance.font.pixelSize.huge
+                        color: Appearance.m3colors.m3primary
+                    }
                 }
-                StyledText {
+
+                ColumnLayout {
+                    spacing: 0
                     Layout.fillWidth: true
-                    text: ShellUpdates.latestMessage
-                    font.family: Appearance.font.family.monospace
-                    font.pixelSize: Appearance.font.pixelSize.smallest
-                    color: Appearance.colors.colOnSurfaceVariant
-                    elide: Text.ElideRight
-                    maximumLineCount: 1
-                    wrapMode: Text.NoWrap
+
+                    StyledText {
+                        text: Translation.tr("iNiR Update")
+                        font {
+                            weight: Font.DemiBold
+                            pixelSize: Appearance.font.pixelSize.normal
+                        }
+                        color: Appearance.colors.colOnLayer1
+                    }
+
+                    StyledText {
+                        text: ShellUpdates.commitsBehind > 0
+                            ? Translation.tr("%1 commit(s) behind").arg(ShellUpdates.commitsBehind)
+                            : Translation.tr("Update available")
+                        font.pixelSize: Appearance.font.pixelSize.smaller
+                        color: ShellUpdates.commitsBehind > 10
+                            ? Appearance.m3colors.m3error
+                            : Appearance.colors.colSubtext
+                    }
                 }
             }
 
-            // Error
+            // Version comparison card
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: versionCol.implicitHeight + 16
+                radius: Appearance.rounding.small
+                color: Appearance.colors.colLayer2
+                border.width: 1
+                border.color: Appearance.colors.colLayer0Border
+
+                ColumnLayout {
+                    id: versionCol
+                    anchors {
+                        fill: parent
+                        margins: 8
+                    }
+                    spacing: 6
+
+                    // Current → Available
+                    RowLayout {
+                        spacing: 6
+                        Layout.fillWidth: true
+
+                        Rectangle {
+                            width: currentLabel.implicitWidth + 12
+                            height: currentLabel.implicitHeight + 4
+                            radius: height / 2
+                            color: Appearance.colors.colSurfaceContainerLow
+
+                            StyledText {
+                                id: currentLabel
+                                anchors.centerIn: parent
+                                text: ShellUpdates.localCommit || "—"
+                                font {
+                                    pixelSize: Appearance.font.pixelSize.smallest
+                                    family: Appearance.font.family.monospace
+                                    weight: Font.Medium
+                                }
+                                color: Appearance.colors.colSubtext
+                            }
+                        }
+
+                        MaterialSymbol {
+                            text: "arrow_forward"
+                            iconSize: Appearance.font.pixelSize.smaller
+                            color: Appearance.m3colors.m3primary
+                            visible: ShellUpdates.remoteCommit.length > 0
+                        }
+
+                        Rectangle {
+                            visible: ShellUpdates.remoteCommit.length > 0
+                            width: remoteLabel.implicitWidth + 12
+                            height: remoteLabel.implicitHeight + 4
+                            radius: height / 2
+                            color: ColorUtils.transparentize(Appearance.m3colors.m3primary, 0.85)
+
+                            StyledText {
+                                id: remoteLabel
+                                anchors.centerIn: parent
+                                text: ShellUpdates.remoteCommit || "—"
+                                font {
+                                    pixelSize: Appearance.font.pixelSize.smallest
+                                    family: Appearance.font.family.monospace
+                                    weight: Font.DemiBold
+                                }
+                                color: Appearance.m3colors.m3primary
+                            }
+                        }
+                    }
+
+                    // Branch
+                    RowLayout {
+                        visible: ShellUpdates.currentBranch.length > 0
+                        spacing: 4
+
+                        MaterialSymbol {
+                            text: "account_tree"
+                            iconSize: Appearance.font.pixelSize.smallest
+                            color: Appearance.colors.colSubtext
+                        }
+                        StyledText {
+                            text: ShellUpdates.currentBranch
+                            font {
+                                pixelSize: Appearance.font.pixelSize.smallest
+                                family: Appearance.font.family.monospace
+                            }
+                            color: Appearance.colors.colSubtext
+                        }
+                    }
+
+                    // Latest commit message
+                    RowLayout {
+                        visible: ShellUpdates.latestMessage.length > 0
+                        spacing: 4
+                        Layout.fillWidth: true
+                        Layout.maximumWidth: 280
+
+                        MaterialSymbol {
+                            text: "notes"
+                            iconSize: Appearance.font.pixelSize.smallest
+                            color: Appearance.colors.colSubtext
+                        }
+                        StyledText {
+                            Layout.fillWidth: true
+                            text: ShellUpdates.latestMessage
+                            font {
+                                pixelSize: Appearance.font.pixelSize.smallest
+                                family: Appearance.font.family.monospace
+                            }
+                            color: Appearance.colors.colSubtext
+                            elide: Text.ElideRight
+                            maximumLineCount: 2
+                            wrapMode: Text.WrapAtWordBoundaryOrAnywhere
+                        }
+                    }
+                }
+            }
+
+            // Error display
             RowLayout {
                 spacing: 4
                 visible: ShellUpdates.lastError.length > 0
-                Layout.maximumWidth: 260
+                Layout.fillWidth: true
+                Layout.maximumWidth: 280
 
                 MaterialSymbol {
                     text: "error"
                     color: Appearance.m3colors.m3error
-                    iconSize: Appearance.font.pixelSize.large
+                    iconSize: Appearance.font.pixelSize.smaller
                 }
                 StyledText {
                     Layout.fillWidth: true
@@ -223,10 +299,10 @@ MouseArea {
 
             // Hint
             StyledText {
-                text: Translation.tr("Click to update \u2022 Right-click to dismiss")
+                text: Translation.tr("Click to update · Right-click to dismiss")
                 font.pixelSize: Appearance.font.pixelSize.smallest
-                color: Appearance.colors.colOnSurfaceVariant
-                opacity: 0.6
+                color: Appearance.colors.colSubtext
+                opacity: 0.7
             }
         }
     }

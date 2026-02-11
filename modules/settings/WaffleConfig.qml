@@ -8,7 +8,6 @@ import qs.modules.common.functions
 
 ContentPage {
     id: root
-    forceWidth: true
     settingsPageIndex: 10
     settingsPageName: Translation.tr("Waffle Style")
 
@@ -183,7 +182,7 @@ ContentPage {
                 text: Translation.tr("Enable animated wallpapers (videos/GIFs)")
                 checked: Config.options?.waffles?.background?.backdrop?.enableAnimation ?? false
                 onCheckedChanged: {
-                    Config.options.waffles.background.backdrop.enableAnimation = checked;
+                    Config.setNestedValue("waffles.background.backdrop.enableAnimation", checked);
                 }
                 StyledToolTip {
                     text: Translation.tr("Play videos and GIFs in backdrop (may impact performance)")
@@ -536,7 +535,7 @@ ContentPage {
                 buttonIcon: "bolt"
                 text: Translation.tr("Quick switch (Alt+Tab once to switch)")
                 checked: Config.options?.waffles?.altSwitcher?.quickSwitch ?? true
-                onCheckedChanged: Config.options.waffles.altSwitcher.quickSwitch = checked
+                onCheckedChanged: Config.setNestedValue("waffles.altSwitcher.quickSwitch", checked)
                 StyledToolTip { text: Translation.tr("Single Alt+Tab switches to previous window without showing the switcher") }
             }
 
