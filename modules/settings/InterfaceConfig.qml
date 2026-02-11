@@ -898,12 +898,12 @@ ContentPage {
                 ConfigSpinBox {
                     icon: "border_style"
                     text: Translation.tr("Border size (px)")
-                    value: Config.options.region.borderSize
+                    value: Config.options.regionSelector.borderSize
                     from: 1
                     to: 10
                     stepSize: 1
                     onValueChanged: {
-                        Config.options.region.borderSize = value;
+                        Config.setNestedValue("regionSelector.borderSize", value);
                     }
                     StyledToolTip {
                         text: Translation.tr("Thickness of the selection region border")
@@ -912,12 +912,12 @@ ContentPage {
                 ConfigSpinBox {
                     icon: "format_size"
                     text: Translation.tr("Numbers size (px)")
-                    value: Config.options.region.numSize
+                    value: Config.options.regionSelector.numSize
                     from: 10
                     to: 100
                     stepSize: 2
                     onValueChanged: {
-                        Config.options.region.numSize = value;
+                        Config.setNestedValue("regionSelector.numSize", value);
                     }
                     StyledToolTip {
                         text: Translation.tr("Font size of the region index numbers")
@@ -1162,12 +1162,6 @@ ContentPage {
                     buttonIcon: "calendar_month"
                     text: Translation.tr("Calendar")
                     Component.onCompleted: checked = rightSidebarWidgets.isEnabled("calendar")
-                    Connections {
-                        target: Config
-                        function onConfigChanged() {
-                            checked = rightSidebarWidgets.isEnabled("calendar")
-                        }
-                    }
                     onClicked: {
                         // checked ya fue invertido por ConfigSwitch.onClicked
                         rightSidebarWidgets.setWidget("calendar", checked)
@@ -1178,12 +1172,6 @@ ContentPage {
                     buttonIcon: "done_outline"
                     text: Translation.tr("To Do")
                     Component.onCompleted: checked = rightSidebarWidgets.isEnabled("todo")
-                    Connections {
-                        target: Config
-                        function onConfigChanged() {
-                            checked = rightSidebarWidgets.isEnabled("todo")
-                        }
-                    }
                     onClicked: {
                         rightSidebarWidgets.setWidget("todo", checked)
                     }
@@ -1193,12 +1181,6 @@ ContentPage {
                     buttonIcon: "edit_note"
                     text: Translation.tr("Notepad")
                     Component.onCompleted: checked = rightSidebarWidgets.isEnabled("notepad")
-                    Connections {
-                        target: Config
-                        function onConfigChanged() {
-                            checked = rightSidebarWidgets.isEnabled("notepad")
-                        }
-                    }
                     onClicked: {
                         rightSidebarWidgets.setWidget("notepad", checked)
                     }
@@ -1208,12 +1190,6 @@ ContentPage {
                     buttonIcon: "calculate"
                     text: Translation.tr("Calculator")
                     Component.onCompleted: checked = rightSidebarWidgets.isEnabled("calculator")
-                    Connections {
-                        target: Config
-                        function onConfigChanged() {
-                            checked = rightSidebarWidgets.isEnabled("calculator")
-                        }
-                    }
                     onClicked: {
                         rightSidebarWidgets.setWidget("calculator", checked)
                     }
@@ -1223,12 +1199,6 @@ ContentPage {
                     buttonIcon: "monitor_heart"
                     text: Translation.tr("System Monitor")
                     Component.onCompleted: checked = rightSidebarWidgets.isEnabled("sysmon")
-                    Connections {
-                        target: Config
-                        function onConfigChanged() {
-                            checked = rightSidebarWidgets.isEnabled("sysmon")
-                        }
-                    }
                     onClicked: {
                         rightSidebarWidgets.setWidget("sysmon", checked)
                     }
@@ -1238,12 +1208,6 @@ ContentPage {
                     buttonIcon: "schedule"
                     text: Translation.tr("Timer")
                     Component.onCompleted: checked = rightSidebarWidgets.isEnabled("timer")
-                    Connections {
-                        target: Config
-                        function onConfigChanged() {
-                            checked = rightSidebarWidgets.isEnabled("timer")
-                        }
-                    }
                     onClicked: {
                         rightSidebarWidgets.setWidget("timer", checked)
                     }

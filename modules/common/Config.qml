@@ -234,6 +234,7 @@ Singleton {
                         property bool wezterm: true
                         property bool ghostty: true
                         property bool konsole: true
+                        property bool starship: true
                     }
                     property JsonObject terminalGenerationProps: JsonObject {
                         property real harmony: 0.6
@@ -765,6 +766,8 @@ Singleton {
             }
 
             property JsonObject regionSelector: JsonObject {
+                property int borderSize: 4
+                property int numSize: 48
                 property JsonObject targetRegions: JsonObject {
                     property bool windows: true
                     property bool layers: false
@@ -1081,6 +1084,7 @@ Singleton {
                     property int autoHideDelayMs: 500
                     property bool closeOnFocus: true
                     property bool useMostRecentFirst: true
+                    property bool quickSwitch: true
                     property int thumbnailWidth: 280
                     property int thumbnailHeight: 180
                     property real scrimOpacity: 0.4
@@ -1091,6 +1095,7 @@ Singleton {
                     property string thumbnailPath: "" // Thumbnail for animated wallpapers (video/gif)
                     property bool useMainWallpaper: true
                     property bool enableAnimation: true // Enable animated wallpapers (video/gif)
+                    property bool hideWhenFullscreen: true
                     property JsonObject effects: JsonObject {
                         property bool enableBlur: false
                         property int blurRadius: 32

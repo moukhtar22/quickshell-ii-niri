@@ -535,7 +535,7 @@ ContentPage {
                 buttonIcon: "bolt"
                 text: Translation.tr("Quick switch (Alt+Tab once to switch)")
                 checked: Config.options?.waffles?.altSwitcher?.quickSwitch ?? true
-                onCheckedChanged: Config.options.waffles.altSwitcher.quickSwitch = checked
+                onCheckedChanged: Config.setNestedValue("waffles.altSwitcher.quickSwitch", checked)
                 StyledToolTip { text: Translation.tr("Single Alt+Tab switches to previous window without showing the switcher") }
             }
 
